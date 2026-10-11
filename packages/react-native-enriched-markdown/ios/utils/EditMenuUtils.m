@@ -41,6 +41,7 @@ static UIAction *createCopyAction(NSAttributedString *selectedText, NSRange rang
 }
 
 static UIAction *_Nullable createCopyMarkdownAction(NSString *markdown, NSString *copyAsMarkdownLabel, NSRange range,
+                                                    NSAttributedString *selection, StyleConfig *config,
                                                     ENRMSelectionCopyHandler _Nullable onSelectionCopy)
 {
   if (markdown.length == 0)
@@ -50,7 +51,10 @@ static UIAction *_Nullable createCopyMarkdownAction(NSString *markdown, NSString
                              image:[RCTUIImage systemImageNamed:@"doc.text"]
                         identifier:kActionIdentifierCopyMarkdown
                            handler:^(__kindof UIAction *action) {
-                             ENRMCopySelectionString(markdown, ENRMSelectionCopyFormatMarkdown, range, onSelectionCopy);
+                             copySelectionMarkdownToPasteboard(markdown, selection, config);
+                             if (onSelectionCopy) {
+                               onSelectionCopy(markdown, ENRMSelectionCopyFormatMarkdown, range);
+                             }
                            }];
 }
 
@@ -132,7 +136,8 @@ UIMenu *buildEditMenuForSelection(NSAttributedString *attributedText, NSRange ra
       createCopyAction(selectedText, range, markdown, styleConfig, selectionMenuConfig.copyLabel, onSelectionCopy);
   UIAction *copyMarkdownAction =
       selectionMenuConfig.copyAsMarkdown
-          ? createCopyMarkdownAction(markdown, selectionMenuConfig.copyAsMarkdownLabel, range, onSelectionCopy)
+          ? createCopyMarkdownAction(markdown, selectionMenuConfig.copyAsMarkdownLabel, range, selectedText,
+                                       styleConfig, onSelectionCopy)
           : nil;
   UIAction *copyImageURLAction = selectionMenuConfig.copyImageURL
                                      ? createCopyImageURLAction(imageURLs, selectionMenuConfig, range, onSelectionCopy)

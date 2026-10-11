@@ -490,6 +490,7 @@ interface TextLinkNativeRegex {
 }
 
 export interface NativeProps extends ViewProps {
+  selectionClipboardConfig?: string;
   /**
    * Markdown content to render.
    */

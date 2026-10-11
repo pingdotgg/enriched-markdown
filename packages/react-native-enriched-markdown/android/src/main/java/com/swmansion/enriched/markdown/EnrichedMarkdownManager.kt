@@ -154,6 +154,14 @@ class EnrichedMarkdownManager :
 
   override fun getExportedCustomDirectEventTypeConstants(): MutableMap<String, Any> = markdownEventTypeConstants()
 
+  @ReactProp(name = "selectionClipboardConfig")
+  override fun setSelectionClipboardConfig(
+    view: EnrichedMarkdown?,
+    value: String?,
+  ) {
+    view?.setSelectionClipboardConfig(value)
+  }
+
   @ReactProp(name = "markdown")
   override fun setMarkdown(
     view: EnrichedMarkdown?,

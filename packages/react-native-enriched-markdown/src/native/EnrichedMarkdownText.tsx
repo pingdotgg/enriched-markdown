@@ -210,6 +210,7 @@ export const EnrichedMarkdownText = ({
   onLinkLongPress,
   onImagePress,
   onTextPress,
+  selectionClipboard,
   onTaskListItemPress,
   enableTaskListItemToggle = true,
   onCopyPress,
@@ -595,6 +596,11 @@ export const EnrichedMarkdownText = ({
   );
   const resolvedAdmonitionTitles = useAdmonitionTitles(admonitionTitles);
 
+  const selectionClipboardConfig = useMemo(
+    () => (selectionClipboard ? JSON.stringify(selectionClipboard) : ''),
+    [selectionClipboard]
+  );
+
   // One parse on the JS thread serves both: the slot children land in the same
   // commit as the markdown they describe, the image sources before it is drawn.
   const nativeStream = nativeStreamOf(streamSnapshot);
@@ -629,6 +635,7 @@ export const EnrichedMarkdownText = ({
 
   const sharedProps = {
     ...streamProps(nativeStream, markdown),
+    selectionClipboardConfig,
     linkRecognition: nativeLinkRecognition,
     markdownStyle: normalizedStyle,
     onLinkPress: handleLinkPress,

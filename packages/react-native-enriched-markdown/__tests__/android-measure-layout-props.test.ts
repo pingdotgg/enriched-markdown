@@ -28,6 +28,8 @@ const NOT_LAYOUT = new Set([
   'contextMenuItems',
   'linkContextMenuItems',
   'selectionMenuConfig',
+  // What a copy puts on the clipboard.
+  'selectionClipboardConfig',
   'accessibilityLabels',
   'admonitionTitles',
   'lineBreakStrategyIOS',

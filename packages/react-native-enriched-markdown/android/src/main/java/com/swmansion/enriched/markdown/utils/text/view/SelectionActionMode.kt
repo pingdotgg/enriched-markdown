@@ -223,11 +223,13 @@ private fun TextView.copyWithHTML(
 
   val spannable = text as? Spannable ?: return null
   val selectedText = spannable.subSequence(start, end)
-  val plainText = selectedText.toString()
 
   val styleConfig =
     (this as? EnrichedMarkdownText)?.markdownStyle
       ?: findParentMarkdownStyle()
+  val config = styleConfig?.selectionClipboard ?: SelectionClipboardConfig()
+  val canonical = (selectedText as? android.text.Spanned)?.let { canonicalClipboardText(it, config) }
+  val plainText = canonical ?: selectedText.toString()
 
   if (styleConfig != null && selectedText is Spannable) {
     // Density values convert device pixels back to CSS pixels
@@ -241,7 +243,8 @@ private fun TextView.copyWithHTML(
         displayMetrics.density,
         isRTL,
       )
-    if (writeClip(ClipData.newHtmlText("EnrichedMarkdown", plainText, html))) return plainText
+    val clipHtml = if (canonical != null) clipboardHtml(html, config) else html
+    if (writeClip(ClipData.newHtmlText("EnrichedMarkdown", plainText, clipHtml))) return plainText
     // The HTML can be what took the clip over the limit, so plain text may still fit.
   }
   return plainText.takeIf { writeClip(ClipData.newPlainText("Text", plainText)) }
@@ -249,6 +252,13 @@ private fun TextView.copyWithHTML(
 
 private fun TextView.copyMarkdownToClipboard(): String? {
   val markdown = MarkdownExtractor.getMarkdownForSelection(this) ?: return null
+  val config = ((this as? EnrichedMarkdownText)?.markdownStyle ?: findParentMarkdownStyle())?.selectionClipboard
+  val selected = text.subSequence(selectionStart, selectionEnd) as? android.text.Spanned
+  if (config != null && selected != null && canonicalClipboardText(selected, config) != null) {
+    val escaped = markdown.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    val clip = ClipData.newHtmlText("Markdown", markdown, clipboardHtml("<pre>$escaped</pre>", config))
+    return markdown.takeIf { writeClip(clip) }
+  }
   return markdown.takeIf { writeClip(ClipData.newPlainText("Markdown", markdown)) }
 }
 
