@@ -9,6 +9,8 @@ and someone@example.com.
 Prefixed e-mail autolinks: mailto:someone@example.com and
 xmpp:someone@example.com.
 
+Hash routes: https://studio.example.ts.net:9501/#/chat and https://example.com/#!/inbox?tab=all.
+
 > [!NOTE]
 > An admonition body.
 
