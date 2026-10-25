@@ -227,6 +227,8 @@ class LinkPillSpan(
         if (style == base.style) base else Typeface.create(base, style)
       }
     textSize = fontSize
+    // The first run can be inline code's narrowed padding space (CodePaddingSpan).
+    textScaleX = 1f
     color = variant.color
     bgColor = 0
     isUnderlineText = variant.underline
