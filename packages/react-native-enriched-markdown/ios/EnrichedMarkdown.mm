@@ -1824,6 +1824,7 @@ static CGSize ENRMRoundedContentSize(CGSize contentSize, CGFloat width)
       newViewProps.md4cFlags.highlight != oldViewProps.md4cFlags.highlight ||
       newViewProps.md4cFlags.hardSoftBreaks != oldViewProps.md4cFlags.hardSoftBreaks ||
       newViewProps.md4cFlags.preserveBlankLines != oldViewProps.md4cFlags.preserveBlankLines ||
+      newViewProps.md4cFlags.preserveWindowsPaths != oldViewProps.md4cFlags.preserveWindowsPaths ||
       newViewProps.md4cFlags.admonitions != oldViewProps.md4cFlags.admonitions) {
     _md4cFlags = [EnrichedMarkdown flagsFromProps:newViewProps.md4cFlags];
     _dirtyFlags |= ENRMDirtyForceHeight | ENRMDirtyRender;
