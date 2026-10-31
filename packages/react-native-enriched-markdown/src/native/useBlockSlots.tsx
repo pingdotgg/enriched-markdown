@@ -19,10 +19,11 @@ import type {
 export interface CollectedMarkdown {
   blocks: ReadonlyArray<MarkdownBlock>;
   images: ReadonlyArray<MarkdownImageOccurrence>;
-  links: ReadonlyArray<MarkdownLinkOccurrence>;
+  /** `null` when nothing was collected, as opposed to a document with no links. */
+  links: ReadonlyArray<MarkdownLinkOccurrence> | null;
 }
 
-const EMPTY: CollectedMarkdown = { blocks: [], images: [], links: [] };
+const EMPTY: CollectedMarkdown = { blocks: [], images: [], links: null };
 
 let warnedAboutModule = false;
 let warnedAboutFlavor = false;
@@ -103,11 +104,7 @@ export function useCollectedMarkdown(
         title: image.title,
         placement: image.placement as MarkdownImagePlacement,
       })),
-      links: collected.links.map((link) => ({
-        url: link.url,
-        label: link.label,
-        title: link.title,
-      })),
+      links: collected.links,
     };
   }, [markdown, flags, isGFM, enabled, streaming]);
 }

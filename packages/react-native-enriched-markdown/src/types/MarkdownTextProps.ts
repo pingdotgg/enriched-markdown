@@ -625,7 +625,7 @@ export interface EnrichedMarkdownTextProps extends Omit<ViewProps, 'style'> {
    *
    * It is read like an event handler: changing the function does not report
    * again. While streaming, it sees the links the streaming options let
-   * through.
+   * through, including a bare URL still being written, reported again as it grows.
    *
    * Only applies when `flavor="github"`.
    * @platform ios, android, web

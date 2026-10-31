@@ -177,7 +177,8 @@ export const EnrichedMarkdownText = ({
   }, [renderersEnabled, renderedBlocks]);
 
   const imageSources = useImageSources(collected.images, resolveImageSource);
-  useLinksChange(collected.links, onLinksChange);
+  // Nothing is known before the first parse.
+  useLinksChange(collected === EMPTY ? null : collected.links, onLinksChange);
 
   const blockDir = dir === 'ltr' || dir === 'rtl' ? undefined : 'auto';
   const capabilities = useMemo<RenderCapabilities>(

@@ -26,9 +26,10 @@ function sameLinks(
  * makes lands before the frame is drawn, and only when the links differ from
  * the last report: a streaming tick that adds no link reports nothing. The
  * handler is read like an event handler; a new function does not report again.
+ * `null` means the links are not known, so nothing is reported.
  */
 export function useLinksChange(
-  links: ReadonlyArray<MarkdownLinkOccurrence>,
+  links: ReadonlyArray<MarkdownLinkOccurrence> | null,
   onLinksChange: LinksChangeHandler | undefined
 ): void {
   const handlerRef = useRef(onLinksChange);
@@ -43,6 +44,7 @@ export function useLinksChange(
       reportedRef.current = undefined;
       return;
     }
+    if (links == null) return;
     const reported = reportedRef.current;
     if (reported && sameLinks(reported, links)) return;
     reportedRef.current = links;

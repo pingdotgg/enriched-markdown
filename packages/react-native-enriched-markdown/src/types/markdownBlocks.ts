@@ -52,7 +52,7 @@ export interface MarkdownVideoBlock extends MarkdownMediaBlock {
  */
 export interface MarkdownLinkBlock extends MarkdownMediaBlock {
   kind: 'link';
-  /** The link text, `""` for a bare URL or autolink. */
+  /** The link text; for a bare URL or autolink, the URL as written. */
   label: string;
   /** The Markdown title, `""` when there is none. */
   title: string;

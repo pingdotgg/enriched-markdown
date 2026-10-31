@@ -282,7 +282,7 @@ int main(int argc, char **argv) {
   }
 
   // A shared document pins whole ids, text extraction included, for the web twin.
-  if (argc > 3) {
+  if (argc > 4) {
     std::ifstream document(argv[2]);
     std::stringstream markdown;
     markdown << document.rdbuf();
@@ -299,6 +299,17 @@ int main(int argc, char **argv) {
         expected.push_back(line);
     }
     check(!expected.empty() && got == expected, "the shared document collects the pinned ids");
+
+    std::vector<std::string> gotLinks;
+    for (const auto &link : shared.links)
+      gotLinks.push_back(link.url + '\t' + link.label + '\t' + link.title);
+    std::ifstream linksFile(argv[4]);
+    std::vector<std::string> expectedLinks;
+    for (std::string line; std::getline(linksFile, line);) {
+      if (!line.empty() && line[0] != '#')
+        expectedLinks.push_back(line);
+    }
+    check(!expectedLinks.empty() && gotLinks == expectedLinks, "the shared document collects the pinned links");
   }
 
   if (failures == 0) {

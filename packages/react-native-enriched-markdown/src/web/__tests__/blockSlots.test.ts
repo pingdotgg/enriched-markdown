@@ -172,8 +172,24 @@ it('treats a link-only paragraph as a link block and mixed images as text', () =
   expect(images.map((i) => i.placement)).toEqual(['link', 'inline']);
 });
 
-it('reports every link in document order, like the C++ collector', async () => {
-  // packages/core/cpp/tests/block_slots_test.cpp asserts the same document.
+it('collects the pinned links from the shared document', async () => {
+  // Both fixtures are asserted by packages/core/cpp/tests/block_slots_test.cpp.
+  const dir = join(__dirname, '../../../../core/cpp/tests/fixtures/block_ids');
+  const doc = await parseMarkdown(
+    readFileSync(join(dir, 'document.md'), 'utf8'),
+    {}
+  );
+  const expected = readFileSync(join(dir, 'links.txt'), 'utf8')
+    .split('\n')
+    .filter((line) => line.length > 0 && !line.startsWith('#'));
+  expect(
+    collectBlocks(doc).links.map(
+      (link) => `${link.url}\t${link.label}\t${link.title}`
+    )
+  ).toEqual(expected);
+});
+
+it('reports every link in document order', async () => {
   const doc = await parseMarkdown(
     '# [h](https://e.com/h)\n\nSee [docs](https://e.com/d "Docs") and https://e.com/bare here\n\n' +
       '- <https://e.com/auto>\n\n| a |\n|---|\n| [cell](https://e.com/t) |\n\n' +

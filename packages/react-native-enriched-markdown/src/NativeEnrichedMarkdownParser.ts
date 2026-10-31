@@ -36,13 +36,13 @@ export interface NativeImageOccurrence {
   placement: string;
 }
 
-/** The host's streaming filter settings, applied before collecting when `enabled`. */
 export interface NativeLinkOccurrence {
   url: string;
   label: string;
   title: string;
 }
 
+/** The host's streaming filter settings, applied before collecting when `enabled`. */
 export interface NativeStreamingOptions {
   enabled: boolean;
   tableMode: string;

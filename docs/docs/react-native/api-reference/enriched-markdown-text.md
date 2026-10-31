@@ -385,7 +385,7 @@ interface MarkdownLinkBlock {
   kind: 'link';
   id: string;
   url: string;
-  label: string; // the link text; "" for a bare URL or autolink
+  label: string; // the link text; for a bare URL or autolink, the URL as written
   title: string; // the Markdown title, e.g. a MIME type or size; "" when there is none
   placement: MarkdownBlockPlacement;
 }
@@ -821,12 +821,12 @@ interface LatexErrorEvent {
 
 ### `onLinksChange`
 
-Callback fired with the document's links: once when the component mounts, then whenever they change. Use it to fill [`linkPillContent`](#linkpillcontent), `markdownStyle.linkVariants` or [`linkContextMenuItems`](#linkcontextmenuitems) for the links a document actually contains, such as a label and icon per file link.
+Callback fired with the document's links: once when the component mounts, then whenever they change. Use it to fill `markdownStyle.linkVariants`, or on iOS and Android [`linkPillContent`](#linkpillcontent) and [`linkContextMenuItems`](#linkcontextmenuitems), for the links a document actually contains, such as a label and icon per file link.
 
 - **Which links:** every inline link, autolink and bare URL, in document order, including those in headings, lists, tables, blockquotes and link blocks. A URL that appears twice is reported twice. Links that [`linkRecognition`](#linkrecognition) adds are not reported, since recognition runs as the text is drawn.
-- **Calls:** after rendering, in a layout effect, so a state update made in it lands before the frame is drawn. A streaming tick that adds no link reports nothing. Passing a new function does not report again.
-- **Streaming:** reports the links the [`streamingConfig`](#streamingconfig) filter lets through.
-- **Flavor:** `flavor="github"` only.
+- **Calls:** after rendering, in a layout effect, so a state update made in it lands before the frame is drawn. A streaming tick that leaves the links unchanged reports nothing. Passing a new function does not report again.
+- **Streaming:** reports the links the [`streamingConfig`](#streamingconfig) filter lets through. A bare URL still being written counts as a change on every tick that extends it, so the handler sees partial URLs (`https://example.c`, then `https://example.com`).
+- **Flavor:** on iOS and Android, `flavor="github"` only. Other flavors report nothing.
 
 <PropInfo type="(links: MarkdownLinkOccurrence[]) => void" />
 

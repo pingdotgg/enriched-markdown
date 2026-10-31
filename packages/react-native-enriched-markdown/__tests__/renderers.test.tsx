@@ -372,7 +372,11 @@ const OCCURRENCES: ReadonlyArray<NativeImageOccurrence> = [
 
 it('reports the document links on mount and again only when they change', () => {
   const docs = { url: 'https://e.com/docs', label: 'docs', title: '' };
-  const bare = { url: 'https://e.com/bare', label: '', title: '' };
+  const bare = {
+    url: 'https://e.com/bare',
+    label: 'https://e.com/bare',
+    title: '',
+  };
   mockSlots = [];
   mockLinks = [docs];
   const onLinksChange = jest.fn();
@@ -414,6 +418,36 @@ it('reports the document links on mount and again only when they change', () => 
   );
   expect(nextHandler).toHaveBeenCalledTimes(1);
   expect(nextHandler).toHaveBeenLastCalledWith([docs, bare]);
+});
+
+it('reports no links, not an empty list, when nothing was collected', () => {
+  mockLinks = [{ url: 'https://e.com', label: 'e', title: '' }];
+  const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+  const onLinksChange = jest.fn();
+  render(
+    <EnrichedMarkdownText
+      markdown="[e](https://e.com)"
+      flavor="commonmark"
+      onLinksChange={onLinksChange}
+    />
+  );
+  expect(mockCollect).not.toHaveBeenCalled();
+  expect(onLinksChange).not.toHaveBeenCalled();
+  warn.mockRestore();
+});
+
+it('reports an empty list for a document with no links', () => {
+  mockSlots = [];
+  const onLinksChange = jest.fn();
+  render(
+    <EnrichedMarkdownText
+      markdown="No links"
+      flavor="github"
+      onLinksChange={onLinksChange}
+    />
+  );
+  expect(onLinksChange).toHaveBeenCalledTimes(1);
+  expect(onLinksChange).toHaveBeenLastCalledWith([]);
 });
 
 it('resolves each image once and keeps settled sources across markdown changes', async () => {
