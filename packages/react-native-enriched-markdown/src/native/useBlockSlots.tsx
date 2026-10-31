@@ -19,11 +19,14 @@ import type {
 export interface CollectedMarkdown {
   blocks: ReadonlyArray<MarkdownBlock>;
   images: ReadonlyArray<MarkdownImageOccurrence>;
-  /** `null` when nothing was collected, as opposed to a document with no links. */
-  links: ReadonlyArray<MarkdownLinkOccurrence> | null;
+  links: ReadonlyArray<MarkdownLinkOccurrence>;
 }
 
-const EMPTY: CollectedMarkdown = { blocks: [], images: [], links: null };
+export const NOT_COLLECTED: CollectedMarkdown = {
+  blocks: [],
+  images: [],
+  links: [],
+};
 
 let warnedAboutModule = false;
 let warnedAboutFlavor = false;
@@ -45,7 +48,7 @@ export function useCollectedMarkdown(
   streaming: NativeStreamingOptions
 ): CollectedMarkdown {
   return useMemo(() => {
-    if (!enabled) return EMPTY;
+    if (!enabled) return NOT_COLLECTED;
     if (!isGFM) {
       if (__DEV__ && !warnedAboutFlavor) {
         warnedAboutFlavor = true;
@@ -53,7 +56,7 @@ export function useCollectedMarkdown(
           '[EnrichedMarkdownText] `renderers`, `resolveImageSource` and `onLinksChange` only apply to flavor="github"; the CommonMark renderer keeps native images and videos.'
         );
       }
-      return EMPTY;
+      return NOT_COLLECTED;
     }
     if (NativeEnrichedMarkdownParser == null) {
       if (__DEV__ && !warnedAboutModule) {
@@ -62,7 +65,7 @@ export function useCollectedMarkdown(
           '[EnrichedMarkdownText] `renderers`, `resolveImageSource` and `onLinksChange` need the EnrichedMarkdownParser TurboModule, which is not registered; rebuild the native app. Images, videos and links render natively meanwhile.'
         );
       }
-      return EMPTY;
+      return NOT_COLLECTED;
     }
     const collected = NativeEnrichedMarkdownParser.collect(
       markdown,

@@ -18,7 +18,11 @@ import {
   normalizeLinkContextMenuItems,
 } from '../linkContextMenuUtils';
 import { resolveAccessibilityLabels } from '../accessibilityLabelDefaults';
-import { useBlockSlots, useCollectedMarkdown } from './useBlockSlots';
+import {
+  NOT_COLLECTED,
+  useBlockSlots,
+  useCollectedMarkdown,
+} from './useBlockSlots';
 import { hasRenderers } from '../blockRenderers';
 import { useImageSources } from './useImageSources';
 import { useLinksChange } from '../linkOccurrences';
@@ -495,7 +499,7 @@ export const EnrichedMarkdownText = ({
     resolveImageSource,
     resolveImageSource != null && isGFM
   );
-  useLinksChange(collected.links, onLinksChange);
+  useLinksChange(collected.links, onLinksChange, collected !== NOT_COLLECTED);
 
   const sharedProps = {
     markdown,
