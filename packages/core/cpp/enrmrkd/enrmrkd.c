@@ -3321,6 +3321,8 @@ md_collect_marks(MD_CTX* ctx, const MD_LINE* lines, ENRMRKD_SIZE n_lines, int ta
     int codespan_scanned_till_paragraph_end = false;
     OFF latex_paren_fail_end = 0;
     OFF latex_bracket_fail_end = 0;
+    OFF latex_link_end = 0;
+    unsigned latex_open_brackets = 0;
 
     for(line_index = 0; line_index < n_lines; line_index++) {
         const MD_LINE* line = &lines[line_index];
@@ -3358,7 +3360,7 @@ md_collect_marks(MD_CTX* ctx, const MD_LINE* lines, ENRMRKD_SIZE n_lines, int ta
                 OFF* fail_end = (is_display ? &latex_bracket_fail_end : &latex_paren_fail_end);
                 OFF closer_beg;
 
-                if(off >= *fail_end  &&
+                if(off >= *fail_end  &&  off >= latex_link_end  &&
                    md_is_latex_delimited_math(ctx, line, n_lines - line_index, off, &closer_beg, fail_end))
                 {
                     unsigned flags = MD_MARK_LATEX_DELIMITED | (is_display ? MD_MARK_LATEX_DISPLAY : 0);
@@ -3552,6 +3554,7 @@ md_collect_marks(MD_CTX* ctx, const MD_LINE* lines, ENRMRKD_SIZE n_lines, int ta
                     ADD_MARK(ch, off, off+1, MD_MARK_POTENTIAL_OPENER);
                     off += 1;
                 }
+                latex_open_brackets++;
 
                 /* Two dummies to make enough place for data we need if it is
                  * a link. */
@@ -3561,6 +3564,30 @@ md_collect_marks(MD_CTX* ctx, const MD_LINE* lines, ENRMRKD_SIZE n_lines, int ta
             }
             if(ch == _T(']')) {
                 ADD_MARK(ch, off, off+1, MD_MARK_POTENTIAL_CLOSER);
+
+                /* As on web, an inline link's destination and title are read
+                 * before any \( or \[ inside them, so math cannot start there. */
+                if((ctx->parser.flags & ENRMRKD_FLAG_LATEXMATHSPANS)  &&  !table_mode  &&
+                   latex_open_brackets > 0  &&  off+1 >= latex_link_end  &&
+                   off+1 < lines[n_lines-1].end  &&  CH(off+1) == _T('('))
+                {
+                    MD_LINK_ATTR attr;
+                    OFF link_end;
+                    int is_link = md_is_inline_link_spec(ctx, lines, n_lines, off+1, &link_end, &attr);
+
+                    if(is_link < 0) {
+                        ret = -1;
+                        goto abort;
+                    }
+                    if(is_link) {
+                        latex_link_end = link_end;
+                        if(attr.title_needs_free)
+                            free(attr.title);
+                    }
+                }
+                if(latex_open_brackets > 0)
+                    latex_open_brackets--;
+
                 off++;
                 continue;
             }

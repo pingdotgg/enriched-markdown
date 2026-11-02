@@ -24,6 +24,12 @@ Unclosed \(E = mc
 
 See [docs](https://example.com/\(a\)) here.
 
+See [docs](https://example.com/\(a) then \(x\).
+
+See [docs](https://example.com/\[a) then \[x\].
+
+See [docs](https://example.com "\(a") then \(x\).
+
 `\(x\)` in code.
 
 ```
