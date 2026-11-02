@@ -2816,6 +2816,8 @@ struct MD_MARK_tag {
 #define MD_MARK_BRACKET_CANBEIMAGE          0x20  /* For '[', if can be expanded to the left to eat '!'. */
 #define MD_MARK_BRACKET_HASNESTED           0x40  /* For '[' to rule out invalid link labels early. */
 #define MD_MARK_BRACKET_FOOTNOTEREF         0x80  /* For '[', To distinguish footnotes. */
+#define MD_MARK_LATEX_DELIMITED            0x20  /* For '$', a \( \) or \[ \] delimiter. */
+#define MD_MARK_LATEX_DISPLAY              0x40  /* For '$', a \[ \] delimiter. */
 
 static MD_MARKSTACK*
 md_emph_stack(MD_CTX* ctx, ENRMRKD_CHAR ch, unsigned flags)
@@ -3154,6 +3156,56 @@ md_is_code_span(MD_CTX* ctx, const MD_LINE* lines, ENRMRKD_SIZE n_lines, OFF beg
     return true;
 }
 
+/* Find the \) or \] closing the \( or \[ at beg, reading the formula as TeX
+ * tokens so \\] does not close it. Like the web tokenizer, a backtick before
+ * the closer, or \[...\] holding only digits, commas and spaces (a citation),
+ * is not math. On failure, *p_fail_end is where the scan stopped: any later
+ * opener of the same kind before it fails the same way. */
+static int
+md_is_latex_delimited_math(MD_CTX* ctx, const MD_LINE* lines, ENRMRKD_SIZE n_lines, OFF beg,
+                           OFF* p_closer_beg, OFF* p_fail_end)
+{
+    CHAR closer_ch = (CH(beg+1) == _T('(') ? _T(')') : _T(']'));
+    int substantive = (closer_ch == _T(')'));
+    OFF off = beg + 2;
+    ENRMRKD_SIZE line_index = 0;
+
+    while(line_index < n_lines) {
+        OFF line_end = lines[line_index].end;
+
+        while(off < line_end) {
+            CHAR ch = CH(off);
+
+            if(ch == _T('`')) {
+                *p_fail_end = off;
+                return false;
+            }
+            if(ch == _T('\\')  &&  off+1 < line_end) {
+                if(CH(off+1) == closer_ch) {
+                    if(!substantive) {
+                        *p_fail_end = off;
+                        return false;
+                    }
+                    *p_closer_beg = off;
+                    return true;
+                }
+                off += (CH(off+1) == _T('\\') ? 2 : 1);
+                continue;
+            }
+            if(ch != _T('\\')  &&  ch != _T(',')  &&  !ISWHITESPACE_(ch)  &&  !ISDIGIT_(ch))
+                substantive = true;
+            off++;
+        }
+
+        line_index++;
+        if(line_index < n_lines)
+            off = lines[line_index].beg;
+    }
+
+    *p_fail_end = off;
+    return false;
+}
+
 static int
 md_is_autolink_uri(MD_CTX* ctx, OFF beg, OFF max_end, OFF* p_end)
 {
@@ -3267,6 +3319,8 @@ md_collect_marks(MD_CTX* ctx, const MD_LINE* lines, ENRMRKD_SIZE n_lines, int ta
     MD_MARK* mark;
     OFF codespan_last_potential_closers[CODESPAN_MARK_MAXLEN] = { 0 };
     int codespan_scanned_till_paragraph_end = false;
+    OFF latex_paren_fail_end = 0;
+    OFF latex_bracket_fail_end = 0;
 
     for(line_index = 0; line_index < n_lines; line_index++) {
         const MD_LINE* line = &lines[line_index];
@@ -3295,6 +3349,31 @@ md_collect_marks(MD_CTX* ctx, const MD_LINE* lines, ENRMRKD_SIZE n_lines, int ta
                 break;
 
             ch = CH(off);
+
+            /* A potential \( ... \) or \[ ... \] equation. Table rows are
+             * only split into cells here; each cell is collected again. */
+            if(ch == _T('\\')  &&  (ctx->parser.flags & ENRMRKD_FLAG_LATEXMATHSPANS)  &&  !table_mode  &&
+               off+1 < line->end  &&  ISANYOF2_(CH(off+1), _T('('), _T('['))) {
+                int is_display = (CH(off+1) == _T('['));
+                OFF* fail_end = (is_display ? &latex_bracket_fail_end : &latex_paren_fail_end);
+                OFF closer_beg;
+
+                if(off >= *fail_end  &&
+                   md_is_latex_delimited_math(ctx, line, n_lines - line_index, off, &closer_beg, fail_end))
+                {
+                    unsigned flags = MD_MARK_LATEX_DELIMITED | (is_display ? MD_MARK_LATEX_DISPLAY : 0);
+
+                    ADD_MARK(_T('$'), off, off+2, flags);
+                    ADD_MARK(_T('$'), closer_beg, closer_beg+2, flags);
+                    md_resolve_range(ctx, ctx->n_marks-2, ctx->n_marks-1);
+                    off = closer_beg + 2;
+
+                    /* Advance the current line accordingly. */
+                    if(off > line->end)
+                        line = md_lookup_line(off, lines, n_lines, &line_index);
+                    continue;
+                }
+            }
 
             /* A backslash escape.
              * It can go beyond line->end as it may involve escaped new
@@ -4892,14 +4971,21 @@ md_process_inlines(MD_CTX* ctx, const MD_LINE* lines, ENRMRKD_SIZE n_lines)
                     break;
 
                 case '$':
+                {
+                    int is_display = (mark->flags & MD_MARK_LATEX_DELIMITED)
+                                   ? (mark->flags & MD_MARK_LATEX_DISPLAY) != 0
+                                   : (mark->end - off) % 2 == 0;
+                    ENRMRKD_SPANTYPE span = (is_display ? ENRMRKD_SPAN_LATEXMATH_DISPLAY : ENRMRKD_SPAN_LATEXMATH);
+
                     if(mark->flags & MD_MARK_OPENER) {
-                        MD_ENTER_SPAN((mark->end - off) % 2 ? ENRMRKD_SPAN_LATEXMATH : ENRMRKD_SPAN_LATEXMATH_DISPLAY, NULL);
+                        MD_ENTER_SPAN(span, NULL);
                         text_type = ENRMRKD_TEXT_LATEXMATH;
                     } else {
-                        MD_LEAVE_SPAN((mark->end - off) % 2 ? ENRMRKD_SPAN_LATEXMATH : ENRMRKD_SPAN_LATEXMATH_DISPLAY, NULL);
+                        MD_LEAVE_SPAN(span, NULL);
                         text_type = ENRMRKD_TEXT_NORMAL;
                     }
                     break;
+                }
 
                 case '[':       /* Footnote reference, link, wiki link, or image. */
                 case '!':

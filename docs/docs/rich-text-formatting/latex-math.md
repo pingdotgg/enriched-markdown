@@ -9,8 +9,8 @@ import MathSrc from '!!raw-loader!@site/src/examples/react-native/rich-text-form
 
 `EnrichedMarkdownText` renders LaTeX math natively, both inline and as block equations:
 
-- **Inline math** (`$...$`) flows within the surrounding text and works in either flavor.
-- **Block math** (`$$...$$`) renders as a standalone display equation. In the React Native package on iOS and Android, a display block needs the segmented renderer, so it requires [`flavor="github"`](/react-native/guides/markdown-flavors) - in `commonmark`, a `$$...$$` on its own line falls back to inline typesetting. The web build has no `flavor` prop and always renders `$$` as a block, and the standalone iOS and Android SDKs need no flavor switch either.
+- **Inline math** (`$...$` or `\(...\)`) flows within the surrounding text and works in either flavor.
+- **Block math** (`$$...$$` or `\[...\]`) renders as a standalone display equation. In the React Native package on iOS and Android, a display block needs the segmented renderer, so it requires [`flavor="github"`](/react-native/guides/markdown-flavors) - in `commonmark`, a `$$...$$` on its own line falls back to inline typesetting. The web build has no `flavor` prop and always renders `$$` as a block, and the standalone iOS and Android SDKs need no flavor switch either.
 
 In the React Native package math parsing is **on by default**. You can turn it off so `$` is treated as plain text, and exclude the native math engine to shrink your binary - see [Reducing app size](#reducing-app-size). The standalone iOS and Android SDKs ship math as an optional add-on instead, off until you install and enable it.
 
