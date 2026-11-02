@@ -227,6 +227,7 @@ class LinkPillSpan(
         if (style == base.style) base else Typeface.create(base, style)
       }
     textSize = fontSize
+    textScaleX = 1f
     color = variant.color
     bgColor = 0
     isUnderlineText = variant.underline
