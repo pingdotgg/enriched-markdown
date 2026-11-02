@@ -3554,7 +3554,8 @@ md_collect_marks(MD_CTX* ctx, const MD_LINE* lines, ENRMRKD_SIZE n_lines, int ta
                     ADD_MARK(ch, off, off+1, MD_MARK_POTENTIAL_OPENER);
                     off += 1;
                 }
-                latex_open_brackets++;
+                if(off-1 >= latex_link_end)
+                    latex_open_brackets++;
 
                 /* Two dummies to make enough place for data we need if it is
                  * a link. */
@@ -3563,12 +3564,14 @@ md_collect_marks(MD_CTX* ctx, const MD_LINE* lines, ENRMRKD_SIZE n_lines, int ta
                 continue;
             }
             if(ch == _T(']')) {
+                int is_latex_label_closer = (off >= latex_link_end);
+
                 ADD_MARK(ch, off, off+1, MD_MARK_POTENTIAL_CLOSER);
 
                 /* As on web, an inline link's destination and title are read
                  * before any \( or \[ inside them, so math cannot start there. */
                 if((ctx->parser.flags & ENRMRKD_FLAG_LATEXMATHSPANS)  &&  !table_mode  &&
-                   latex_open_brackets > 0  &&  off+1 >= latex_link_end  &&
+                   is_latex_label_closer  &&  latex_open_brackets > 0  &&
                    off+1 < lines[n_lines-1].end  &&  CH(off+1) == _T('('))
                 {
                     MD_LINK_ATTR attr;
@@ -3585,7 +3588,7 @@ md_collect_marks(MD_CTX* ctx, const MD_LINE* lines, ENRMRKD_SIZE n_lines, int ta
                             free(attr.title);
                     }
                 }
-                if(latex_open_brackets > 0)
+                if(is_latex_label_closer  &&  latex_open_brackets > 0)
                     latex_open_brackets--;
 
                 off++;

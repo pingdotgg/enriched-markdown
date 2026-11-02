@@ -30,6 +30,8 @@ See [docs](https://example.com/\[a) then \[x\].
 
 See [docs](https://example.com "\(a") then \(x\).
 
+[a]([) ](\(x\)) and [a](\]) ](\[x\]).
+
 `\(x\)` in code.
 
 ```
