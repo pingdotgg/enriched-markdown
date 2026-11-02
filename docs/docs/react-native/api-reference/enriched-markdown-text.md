@@ -167,7 +167,7 @@ When `true`, parses `==text==` as highlighted spans. When disabled, double equal
 
 #### `latexMath`
 
-When `true`, parses `$...$` as inline math and `$$...$$` as display (block) math. Rendering on web uses [KaTeX](https://katex.org/) and natively [RaTeX](https://ratex.lites.dev/). Unlike the other flags on this page, `latexMath` is enabled by default - set it to `false` to treat dollar signs as plain text.
+When `true`, parses `$...$` and `\(...\)` as inline math and `$$...$$` and `\[...\]` as display (block) math. Rendering on web uses [KaTeX](https://katex.org/) and natively [RaTeX](https://ratex.lites.dev/). Unlike the other flags on this page, `latexMath` is enabled by default - set it to `false` to treat dollar signs as plain text.
 
 <PropInfo type="boolean" default="true" />
 

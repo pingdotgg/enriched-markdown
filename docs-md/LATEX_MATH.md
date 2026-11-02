@@ -2,8 +2,8 @@
 
 LaTeX math rendering is supported for both block and inline equations:
 
-- **Block math (`$$...$$`)**: Rendered as a standalone display element. Requires `flavor="github"`.
-- **Inline math (`$...$`)**: Rendered within the text flow. Works with both `flavor="commonmark"` and `flavor="github"`.
+- **Block math (`$$...$$` or `\[...\]`)**: Rendered as a standalone display element. Requires `flavor="github"`.
+- **Inline math (`$...$` or `\(...\)`)**: Rendered within the text flow. Works with both `flavor="commonmark"` and `flavor="github"`.
 
 ## Usage
 

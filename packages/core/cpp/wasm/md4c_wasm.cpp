@@ -14,7 +14,7 @@ extern "C" {
  *
  * @param markdown   Null-terminated UTF-8 markdown input.
  * @param underline  1 → enable __ underline extension; 0 → __ means emphasis.
- * @param latexMath  1 → enable $…$ / $$…$$ LaTeX math spans; 0 → disable.
+ * @param latexMath  1 → enable $…$ / $$…$$ / \(…\) / \[…\] LaTeX math spans; 0 → disable.
  * @param superscript 1 → enable ^superscript^ spans; 0 → disable.
  * @param subscript  1 → enable ~subscript~ spans; 0 → disable.
  * @param highlight  1 → enable ==highlight== spans; 0 → disable.
