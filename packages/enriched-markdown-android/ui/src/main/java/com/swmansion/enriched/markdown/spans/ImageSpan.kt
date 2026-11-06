@@ -8,7 +8,6 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Path
-import android.graphics.Rect
 import android.graphics.drawable.Drawable
 import android.net.Uri
 import android.os.Build
@@ -53,7 +52,6 @@ class ImageSpan(
   private val requestKey: String = ImageCache.requestKey(imageUrl, requestHeaders)
 
   private var cachedWidth: Int = 0
-  private val capBounds = Rect()
   private var viewRef: WeakReference<TextView>? = null
   private var sourceDrawable: Drawable? = null
 
@@ -223,10 +221,8 @@ class ImageSpan(
     val drawable = getDrawable()
     canvas.withSave {
       if (isInline) {
-        // Centered on the cap height of the surrounding text, as iOS places inline attachments.
         val imageHeight = drawable.bounds.height()
-        paint.getTextBounds("H", 0, 1, capBounds)
-        translate(x, y - (capBounds.height() + imageHeight) / 2f)
+        translate(x, (y - imageHeight + (imageHeight * 0.1f)))
       } else {
         translate(x, top.toFloat())
       }
