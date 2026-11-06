@@ -49,7 +49,12 @@ try {
     if (existsSync(input))
       cpSync(input, path.join(staging, entry), {
         recursive: true,
-        filter: (file) => !skip.has(path.basename(file)),
+        filter: (file) =>
+          !skip.has(path.basename(file)) &&
+          // Apps generate codegen themselves since upstream #1121.
+          !['ios/generated', 'android/generated'].includes(
+            path.relative(source, file)
+          ),
       });
   }
   cpSync(path.join(root, 'packages/core/cpp'), path.join(staging, 'cpp'), {
@@ -88,7 +93,7 @@ try {
       {
         repository: 'https://github.com/pingdotgg/enriched-markdown',
         commit: git('rev-parse', 'HEAD'),
-        upstreamCommit: '69c3330dd6d75cacd8d046f4e0c4b8fe5c42a6e1',
+        upstreamCommit: '0b59df112e29cc7f6d2f3d4014a7a550ddf63a18',
         version: pkg.version,
       },
       null,
