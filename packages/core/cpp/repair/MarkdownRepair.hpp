@@ -54,13 +54,18 @@
 //   already were not, and `~~` inside a fence is not one either. With
 //   `inlineMath` off a lone `$` is currency, so `$5 and *x` closes; the
 //   reference treats every `$` as math.
+// - A `-` or `=` line inside an open fence is not a setext underline.
+// - Closers are inserted before trailing whitespace, not only before newlines.
+// - A fence closes only with a run at least as long as its opener, so a ```
+//   line inside a ```` fence is content. The reference toggles on every ```.
 // The affected recorded cases in the test data are marked as ours.
 //
 // Additions with no reference counterpart: closers for spoilers, highlight,
-// superscript and subscript (RepairExtensions.cpp).
+// superscript and subscript (RepairExtensions.cpp) and the `withhold` options
+// (RepairWithhold.cpp).
 //
-// When wiring this into a renderer, default `inlineMath` to the parser's
-// latexMath flag: with `$…$` math enabled an open `$x` should be closed too.
+// When wiring this into a renderer, set `inlineMath` and `displayMath` from
+// the parser's latexMath flag.
 //
 // All text is UTF-8. Positions are byte offsets.
 #pragma once
@@ -101,6 +106,11 @@ struct RepairOptions {
   bool highlight = false;
   bool superscript = false;
   bool subscript = false;
+
+  // Remove half-written syntax at the end of a streamed prefix instead of
+  // closing it; withholdMath also reads `$` with the parser's rules.
+  bool withholdIncomplete = false;
+  bool withholdMath = false;
 };
 
 // Equivalent to the reference's top-level function.

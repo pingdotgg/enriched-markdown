@@ -37,6 +37,7 @@
 #import "ENRMSpoilerOverlayView.h"
 #import "ENRMSpoilerTapUtils.h"
 #import "ENRMUTF8.h"
+#import "ENRMViewFreeMeasurement.h"
 #import "EnrichedMarkdownBlockSlot.h"
 #import "EnrichedMarkdownInternalText.h"
 #import "FontScaleObserver.h"
@@ -66,9 +67,9 @@
 #import <objc/runtime.h>
 
 #import <ReactNativeEnrichedMarkdown/EnrichedMarkdownComponentDescriptor.h>
-#import <ReactNativeEnrichedMarkdown/EventEmitters.h>
-#import <ReactNativeEnrichedMarkdown/Props.h>
-#import <ReactNativeEnrichedMarkdown/RCTComponentViewHelpers.h>
+#import <react/renderer/components/EnrichedMarkdownTextSpec/EventEmitters.h>
+#import <react/renderer/components/EnrichedMarkdownTextSpec/Props.h>
+#import <react/renderer/components/EnrichedMarkdownTextSpec/RCTComponentViewHelpers.h>
 
 #import "RCTFabricComponentsPlugins.h"
 #import <React/RCTConversions.h>
@@ -92,6 +93,7 @@ static char kENRMSegmentFadeAnimatorKey;
 - (void)emitLinkLongPress:(NSString *)url;
 - (void)emitLinkContextMenuItemPress:(NSString *)itemText pattern:(NSString *)pattern url:(NSString *)url;
 - (void)emitImagePress:(NSString *)url altText:(NSString *)altText;
+- (void)emitTextPress:(NSInteger)index text:(NSString *)text;
 - (void)emitTaskListItemPress:(NSInteger)index checked:(BOOL)checked text:(NSString *)text;
 - (void)emitCopyPress:(NSString *)code language:(NSString *)language;
 - (void)emitCodeBlockPress:(NSString *)code language:(NSString *)language;
@@ -142,6 +144,7 @@ static char kENRMSegmentFadeAnimatorKey;
   BOOL _enableLinkPreview;
   BOOL _enableTaskListItemToggle;
   BOOL _enableImagePress;
+  BOOL _enableTextPress;
   BOOL _streamingAnimation;
   ENRMTableStreamingMode _tableStreamingMode;
   ENRMCodeBlockStreamingMode _codeBlockStreamingMode;
@@ -188,17 +191,7 @@ static char kENRMSegmentFadeAnimatorKey;
 
 + (ENRMMd4cFlags *)flagsFromProps:(const EnrichedMarkdownMd4cFlagsStruct &)props
 {
-  ENRMMd4cFlags *flags = [ENRMMd4cFlags defaultFlags];
-  flags.underline = props.underline;
-  flags.superscript = props.superscript;
-  flags.subscript = props.subscript;
-  flags.latexMath = props.latexMath;
-  flags.highlight = props.highlight;
-  flags.hardSoftBreaks = props.hardSoftBreaks;
-  flags.preserveBlankLines = props.preserveBlankLines;
-  flags.preserveWindowsPaths = props.preserveWindowsPaths;
-  flags.admonitions = props.admonitions;
-  return flags;
+  return ENRMMd4cFlagsFromProps(props);
 }
 
 - (instancetype)initWithFrame:(CGRect)frame
@@ -266,6 +259,7 @@ static char kENRMSegmentFadeAnimatorKey;
           [strongSelf setNeedsLayout];
           [strongSelf requestHeightUpdate];
         }];
+    _enableTextPress = NO;
     _dynamicBlockProps = [[ENRMDynamicBlockProps alloc] init];
     _linkContextMenus = [[ENRMLinkContextMenus alloc] init];
     __weak EnrichedMarkdown *weakMenuSelf = self;
@@ -502,6 +496,11 @@ static char kENRMSegmentFadeAnimatorKey;
     EnrichedMarkdown *strongSelf = weakSelf;
     if (strongSelf && strongSelf->_enableImagePress && url)
       [strongSelf emitImagePress:url altText:altText];
+  };
+  view.onTextPress = ^(NSInteger index, NSString *text) {
+    EnrichedMarkdown *strongSelf = weakSelf;
+    if (strongSelf && strongSelf->_enableTextPress)
+      [strongSelf emitTextPress:index text:text];
   };
 
   [view applyBlockquoteNode:blockquoteSegment.blockquoteNode];
@@ -1497,6 +1496,7 @@ static char kENRMSegmentFadeAnimatorKey;
   if (newViewProps.md4cFlags.underline != oldViewProps.md4cFlags.underline ||
       newViewProps.md4cFlags.superscript != oldViewProps.md4cFlags.superscript ||
       newViewProps.md4cFlags.subscript != oldViewProps.md4cFlags.subscript ||
+      newViewProps.md4cFlags.strikethrough != oldViewProps.md4cFlags.strikethrough ||
       newViewProps.md4cFlags.latexMath != oldViewProps.md4cFlags.latexMath ||
       newViewProps.md4cFlags.highlight != oldViewProps.md4cFlags.highlight ||
       newViewProps.md4cFlags.hardSoftBreaks != oldViewProps.md4cFlags.hardSoftBreaks ||
@@ -1515,6 +1515,7 @@ static char kENRMSegmentFadeAnimatorKey;
   _enableLinkPreview = newViewProps.enableLinkPreview;
   _enableTaskListItemToggle = newViewProps.enableTaskListItemToggle;
   _enableImagePress = newViewProps.enableImagePress;
+  _enableTextPress = newViewProps.enableTextPress;
 
   // Block gates: mutate the shared box in place. Every existing and future block
   // view reads it live at use-time, so no push into segments is needed.
@@ -1793,7 +1794,10 @@ Class<RCTComponentViewProtocol> EnrichedMarkdownCls(void)
     BOOL isInsideView = CGRectContainsPoint(textSegment.textView.bounds, segmentPoint);
 #endif
     if (isInsideView) {
-      if (isPointOnInteractiveElement(textSegment.textView, segmentPoint, _enableImagePress, NO)) {
+      // Only where textTapped would emit, so a parent Pressable still gets the rest, as on Android.
+      BOOL isTextPress = _enableTextPress && textSegment.textView.selectedRange.length == 0 &&
+                         textPressIndexAtPoint(textSegment.textView, segmentPoint) != NSNotFound;
+      if (isTextPress || isPointOnInteractiveElement(textSegment.textView, segmentPoint, _enableImagePress, NO)) {
         return nil;
       }
       break;
@@ -1824,6 +1828,13 @@ Class<RCTComponentViewProtocol> EnrichedMarkdownCls(void)
   auto emitter = std::static_pointer_cast<EnrichedMarkdownEventEmitter const>(_eventEmitter);
   if (emitter)
     emitter->onLinkPress({.url = std::string(url.UTF8String)});
+}
+
+- (void)emitTextPress:(NSInteger)index text:(NSString *)text
+{
+  auto emitter = std::static_pointer_cast<EnrichedMarkdownEventEmitter const>(_eventEmitter);
+  if (emitter)
+    emitter->onTextPress({.index = (int)index, .text = std::string(text.UTF8String ?: "")});
 }
 
 - (void)emitImagePress:(NSString *)url altText:(NSString *)altText
@@ -1897,6 +1908,8 @@ Class<RCTComponentViewProtocol> EnrichedMarkdownCls(void)
 - (void)textTapped:(ENRMTapRecognizer *)recognizer
 {
   ENRMPlatformTextView *textView = (ENRMPlatformTextView *)recognizer.view;
+  // Read before the link check below clears the selection.
+  BOOL hadSelection = textView.selectedRange.length > 0;
 
   if (_enableTaskListItemToggle &&
       handleTaskListTapWithSharedLogic(
@@ -1927,7 +1940,15 @@ Class<RCTComponentViewProtocol> EnrichedMarkdownCls(void)
     NSDictionary<NSString *, NSString *> *image = imageAtTapLocation(textView, recognizer);
     if (image) {
       [self emitImagePress:image[@"url"] altText:image[@"altText"]];
+      return;
     }
+  }
+
+  // Skip while text is selected so the tap only clears the selection.
+  if (_enableTextPress && !hadSelection) {
+    NSUInteger index = textPressIndexAtTapLocation(textView, recognizer);
+    if (index != NSNotFound)
+      [self emitTextPress:index text:ENRMGetAttributedText(textView).string];
   }
 }
 
@@ -2038,8 +2059,9 @@ Class<RCTComponentViewProtocol> EnrichedMarkdownCls(void)
 #if !TARGET_OS_OSX
 - (NSArray<UIAccessibilityCustomRotor *> *)accessibilityCustomRotors
 {
-  return [MarkdownAccessibilityElementBuilder buildRotorsFromElements:[self accessibilityElements]
-                                                               labels:_accessibilityLabels];
+  // The rotors filter by trait, which only the leaves inside the segments carry.
+  NSArray *leaves = [MarkdownAccessibilityElementBuilder collectLeafElementsFromElements:[self accessibilityElements]];
+  return [MarkdownAccessibilityElementBuilder buildRotorsFromElements:leaves labels:_accessibilityLabels];
 }
 #endif
 

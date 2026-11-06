@@ -164,7 +164,7 @@ void htmlTags(RepairContext &ctx) {
 void setextHeadings(RepairContext &ctx) {
   const std::string_view text = ctx.text();
   const size_t lastNewline = text.rfind('\n');
-  if (lastNewline == npos) {
+  if (lastNewline == npos || endsInsideFence(text)) {
     return;
   }
   const std::string_view lastLine = text.substr(lastNewline + 1);
@@ -349,7 +349,7 @@ void displayMath(RepairContext &ctx) {
     return;
   }
   // A multi-line block gets its closer on its own line. Closers are inserted
-  // before trailing newlines, so the newline is always ours to add.
+  // before trailing whitespace, so the newline is always ours to add.
   const bool multiLine = text.find('\n', opener) != npos;
   ctx.closeAt(opener, multiLine ? "\n$$" : "$$");
 }

@@ -2,8 +2,6 @@
 // helpers in utils.ts. Attribution is in MarkdownRepair.hpp.
 #include "MarkdownRepair.hpp"
 
-#include <algorithm>
-
 #include "RepairInternal.hpp"
 #include "UnicodeTables.hpp"
 
@@ -18,14 +16,7 @@ bool isWordChar(uint32_t codePoint) {
     return (codePoint >= '0' && codePoint <= '9') || (codePoint >= 'A' && codePoint <= 'Z') ||
            (codePoint >= 'a' && codePoint <= 'z') || codePoint == '_';
   }
-  if (codePoint == kNoCodePoint) {
-    return false;
-  }
-  const auto *begin = UnicodeTables::kLetterOrNumberRanges;
-  const auto *end = begin + UnicodeTables::kLetterOrNumberRangeCount;
-  const auto *it = std::upper_bound(begin, end, codePoint,
-                                    [](uint32_t value, const UnicodeTables::Range &r) { return value < r.first; });
-  return it != begin && codePoint <= (it - 1)->last;
+  return inRanges(codePoint, UnicodeTables::kLetterOrNumberRanges, UnicodeTables::kLetterOrNumberRangeCount);
 }
 
 // utils.ts isWithinCodeBlock(): only ``` toggles, no escapes, no inline code.
@@ -83,7 +74,10 @@ void repairInlineMarkdownInPlace(std::string &text, const RepairOptions &options
     text.pop_back();
   }
 
-  RepairContext ctx(text, options.inlineMath);
+  RepairContext ctx(text, options.inlineMath, options.withholdMath);
+  if (options.withholdIncomplete || options.withholdMath) {
+    RepairHandlers::withhold(ctx, options);
+  }
   if (options.singleTilde && !options.subscript) { // with subscripts, `~x~` is markup
     RepairHandlers::singleTilde(ctx);
   }
@@ -120,10 +114,10 @@ void repairInlineMarkdownInPlace(std::string &text, const RepairOptions &options
   if (options.strikethrough) {
     RepairHandlers::strikethrough(ctx);
   }
-  if (options.displayMath) {
+  if (options.displayMath && !options.withholdMath) {
     RepairHandlers::displayMath(ctx);
   }
-  if (options.inlineMath) {
+  if (options.inlineMath && !options.withholdMath) {
     RepairHandlers::inlineMath(ctx);
   }
   if (options.spoilers) {
