@@ -825,25 +825,6 @@ interface LatexErrorEvent {
 
 <LivePreview src={OnLatexErrorSrc} unavailable unavailableReason={<>iOS and Android only - the web build renders math with KaTeX and does not report failures through this callback.</>} />
 
-### `onLinksChange`
-
-Callback fired with the document's links: once when the component mounts, then whenever they change. Use it to fill [`linkPillContent`](#linkpillcontent), `markdownStyle.linkVariants` or [`linkContextMenuItems`](#linkcontextmenuitems) for the links a document actually contains, such as a label and icon per file link.
-
-- **Which links:** every inline link, autolink and bare URL, in document order, including those in headings, lists, tables, blockquotes and link blocks. A URL that appears twice is reported twice. Links that [`linkRecognition`](#linkrecognition) adds are not reported, since recognition runs as the text is drawn.
-- **Calls:** after rendering, in a layout effect, so a state update made in it lands before the frame is drawn. A streaming tick that adds no link reports nothing. Passing a new function does not report again.
-- **Streaming:** reports the links the [`streamingConfig`](#streamingconfig) filter lets through.
-- **Flavor:** `flavor="github"` only.
-
-<PropInfo type="(links: MarkdownLinkOccurrence[]) => void" />
-
-```ts
-interface MarkdownLinkOccurrence {
-  url: string;
-  label: string; // the link text; for a bare URL or autolink, the URL as written
-  title: string; // the Markdown title, "" when there is none
-}
-```
-
 ## See also
 
 - [Element structure](/react-native/api-reference/element-structure) - every supported element, its syntax, block vs. inline categorization, and nesting behavior.

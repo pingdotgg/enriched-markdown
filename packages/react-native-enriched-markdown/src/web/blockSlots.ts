@@ -4,14 +4,12 @@ import type {
   MarkdownImageOccurrence,
   MarkdownImagePlacement,
   MarkdownBlockPlacement,
-  MarkdownLinkOccurrence,
 } from '../types/markdownBlocks';
 import { extractNodeText } from './utils';
 
 export interface CollectedBlocks {
   blocks: MarkdownBlock[];
   images: MarkdownImageOccurrence[];
-  links: MarkdownLinkOccurrence[];
 }
 
 // Ids count earlier entries with the same base, in document order.
@@ -48,7 +46,7 @@ export function blockIdentity(url: string, text = '', title = ''): string {
 export function collectBlocks(root: ASTNode): CollectedBlocks {
   const slotIds = new IdCounter();
   const imageIds = new IdCounter();
-  const result: CollectedBlocks = { blocks: [], images: [], links: [] };
+  const result: CollectedBlocks = { blocks: [], images: [] };
 
   const recordImage = (
     image: ASTNode,
@@ -137,14 +135,6 @@ export function collectBlocks(root: ASTNode): CollectedBlocks {
       });
       node.attributes = { ...node.attributes, blockSlotId: id };
       return;
-    }
-
-    if (node.type === 'Link') {
-      result.links.push({
-        url: node.attributes?.url ?? '',
-        label: trimAscii(extractNodeText(node)),
-        title: node.attributes?.title ?? '',
-      });
     }
 
     const childAncestors = {

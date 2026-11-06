@@ -102,19 +102,6 @@ export interface MarkdownImageOccurrence {
   placement: MarkdownImagePlacement;
 }
 
-/**
- * One link in the document, in document order, wherever it sits: inline links,
- * autolinks and bare URLs in paragraphs, headings, lists, tables and quotes,
- * link blocks included. Links that `linkRecognition` adds are not reported.
- */
-export interface MarkdownLinkOccurrence {
-  url: string;
-  /** The link text; for a bare URL or autolink, the URL as written. */
-  label: string;
-  /** The Markdown title, `""` when there is none. */
-  title: string;
-}
-
 /** The request to make for an image instead of its Markdown URL. */
 export interface MarkdownImageSource {
   uri: string;

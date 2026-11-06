@@ -7,22 +7,19 @@ import { EnrichedMarkdownText } from '../src/native/EnrichedMarkdownText';
 import type {
   NativeBlockSlot,
   NativeImageOccurrence,
-  NativeLinkOccurrence,
   NativeStreamingOptions,
 } from '../src/NativeEnrichedMarkdownParser';
 
 type CollectArgs = [string, unknown, boolean, NativeStreamingOptions];
 let mockSlots: ReadonlyArray<NativeBlockSlot> = [];
 let mockImages: ReadonlyArray<NativeImageOccurrence> = [];
-let mockLinks: ReadonlyArray<NativeLinkOccurrence> = [];
 const mockCollect = jest.fn<
   {
     slots: ReadonlyArray<NativeBlockSlot>;
     images: ReadonlyArray<NativeImageOccurrence>;
-    links: ReadonlyArray<NativeLinkOccurrence>;
   },
   CollectArgs
->(() => ({ slots: mockSlots, images: mockImages, links: mockLinks }));
+>(() => ({ slots: mockSlots, images: mockImages }));
 
 jest.mock('../src/NativeEnrichedMarkdownParser', () => ({
   __esModule: true,
@@ -96,7 +93,6 @@ beforeEach(() => {
   mockCollect.mockClear();
   mockSlots = [IMAGE_BLOCK, VIDEO_BLOCK];
   mockImages = [];
-  mockLinks = [];
 });
 
 it('mounts one slot child per block the renderer replaced, keyed by id', () => {
@@ -369,52 +365,6 @@ const OCCURRENCES: ReadonlyArray<NativeImageOccurrence> = [
     placement: 'list',
   },
 ];
-
-it('reports the document links on mount and again only when they change', () => {
-  const docs = { url: 'https://e.com/docs', label: 'docs', title: '' };
-  const bare = { url: 'https://e.com/bare', label: '', title: '' };
-  mockSlots = [];
-  mockLinks = [docs];
-  const onLinksChange = jest.fn();
-  const root = render(
-    <EnrichedMarkdownText
-      markdown="See [docs](https://e.com/docs)"
-      flavor="github"
-      onLinksChange={onLinksChange}
-    />
-  );
-  expect(mockCollect).toHaveBeenCalled();
-  expect(onLinksChange).toHaveBeenCalledTimes(1);
-  expect(onLinksChange).toHaveBeenLastCalledWith([docs]);
-
-  // A streaming tick with the same links, and a new handler, report nothing.
-  mockLinks = [{ ...docs }];
-  const nextHandler = jest.fn();
-  act(() =>
-    root.render(
-      <EnrichedMarkdownText
-        markdown="See [docs](https://e.com/docs) and"
-        flavor="github"
-        onLinksChange={nextHandler}
-      />
-    )
-  );
-  expect(onLinksChange).toHaveBeenCalledTimes(1);
-  expect(nextHandler).not.toHaveBeenCalled();
-
-  mockLinks = [docs, bare];
-  act(() =>
-    root.render(
-      <EnrichedMarkdownText
-        markdown="See [docs](https://e.com/docs) and https://e.com/bare"
-        flavor="github"
-        onLinksChange={nextHandler}
-      />
-    )
-  );
-  expect(nextHandler).toHaveBeenCalledTimes(1);
-  expect(nextHandler).toHaveBeenLastCalledWith([docs, bare]);
-});
 
 it('resolves each image once and keeps settled sources across markdown changes', async () => {
   mockSlots = [];

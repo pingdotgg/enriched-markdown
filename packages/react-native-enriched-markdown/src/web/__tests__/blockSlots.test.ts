@@ -171,28 +171,3 @@ it('treats a link-only paragraph as a link block and mixed images as text', () =
   expect(blocks[1]).toMatchObject({ title: 'application/pdf' });
   expect(images.map((i) => i.placement)).toEqual(['link', 'inline']);
 });
-
-it('reports every link in document order, like the C++ collector', async () => {
-  // packages/core/cpp/tests/block_slots_test.cpp asserts the same document.
-  const doc = await parseMarkdown(
-    '# [h](https://e.com/h)\n\nSee [docs](https://e.com/d "Docs") and https://e.com/bare here\n\n' +
-      '- <https://e.com/auto>\n\n| a |\n|---|\n| [cell](https://e.com/t) |\n\n' +
-      '> www.example.com\n\n`https://e.com/code`\n',
-    {}
-  );
-  const { links } = collectBlocks(doc);
-  expect(links.map((link) => link.url)).toEqual([
-    'https://e.com/h',
-    'https://e.com/d',
-    'https://e.com/bare',
-    'https://e.com/auto',
-    'https://e.com/t',
-    'http://www.example.com',
-  ]);
-  expect(links[1]).toEqual({
-    url: 'https://e.com/d',
-    label: 'docs',
-    title: 'Docs',
-  });
-  expect(links[5]).toMatchObject({ label: 'www.example.com' });
-});

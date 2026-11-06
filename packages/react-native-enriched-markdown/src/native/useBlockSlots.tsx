@@ -12,25 +12,22 @@ import type {
   MarkdownBlockPlacement,
   MarkdownImageOccurrence,
   MarkdownImagePlacement,
-  MarkdownLinkOccurrence,
   MarkdownRenderers,
 } from '../types/MarkdownTextProps';
 
 export interface CollectedMarkdown {
   blocks: ReadonlyArray<MarkdownBlock>;
   images: ReadonlyArray<MarkdownImageOccurrence>;
-  links: ReadonlyArray<MarkdownLinkOccurrence>;
 }
 
-const EMPTY: CollectedMarkdown = { blocks: [], images: [], links: [] };
+const EMPTY: CollectedMarkdown = { blocks: [], images: [] };
 
 let warnedAboutModule = false;
 let warnedAboutFlavor = false;
 
 /**
- * The blocks `renderers` may replace, the image occurrences
- * `resolveImageSource` is asked about and the links `onLinksChange` reports,
- * in document order, from one parse by
+ * The blocks `renderers` may replace and the image occurrences
+ * `resolveImageSource` is asked about, in document order, from one parse by
  * the C++ core. While streaming, the core applies the host's streaming filter
  * first, so nothing is collected for a block the host is not rendering yet.
  * Empty when disabled, when the module is unavailable (old architecture, web,
@@ -49,7 +46,7 @@ export function useCollectedMarkdown(
       if (__DEV__ && !warnedAboutFlavor) {
         warnedAboutFlavor = true;
         console.warn(
-          '[EnrichedMarkdownText] `renderers`, `resolveImageSource` and `onLinksChange` only apply to flavor="github"; the CommonMark renderer keeps native images and videos.'
+          '[EnrichedMarkdownText] `renderers` and `resolveImageSource` only apply to flavor="github"; the CommonMark renderer keeps native images and videos.'
         );
       }
       return EMPTY;
@@ -58,7 +55,7 @@ export function useCollectedMarkdown(
       if (__DEV__ && !warnedAboutModule) {
         warnedAboutModule = true;
         console.warn(
-          '[EnrichedMarkdownText] `renderers`, `resolveImageSource` and `onLinksChange` need the EnrichedMarkdownParser TurboModule, which is not registered; rebuild the native app. Images, videos and links render natively meanwhile.'
+          '[EnrichedMarkdownText] `renderers` and `resolveImageSource` need the EnrichedMarkdownParser TurboModule, which is not registered; rebuild the native app. Images, videos and links render natively meanwhile.'
         );
       }
       return EMPTY;
@@ -102,11 +99,6 @@ export function useCollectedMarkdown(
         altText: image.altText,
         title: image.title,
         placement: image.placement as MarkdownImagePlacement,
-      })),
-      links: collected.links.map((link) => ({
-        url: link.url,
-        label: link.label,
-        title: link.title,
       })),
     };
   }, [markdown, flags, isGFM, enabled, streaming]);
