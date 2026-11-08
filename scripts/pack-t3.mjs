@@ -93,7 +93,7 @@ try {
       {
         repository: 'https://github.com/pingdotgg/enriched-markdown',
         commit: git('rev-parse', 'HEAD'),
-        upstreamCommit: '0b59df112e29cc7f6d2f3d4014a7a550ddf63a18',
+        upstreamCommit: '1d00a92abc3f7cf953946cf42f999523dec699dc',
         version: pkg.version,
       },
       null,
