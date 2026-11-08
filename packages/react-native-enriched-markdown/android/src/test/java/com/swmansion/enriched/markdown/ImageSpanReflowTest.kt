@@ -2,6 +2,7 @@ package com.swmansion.enriched.markdown
 
 import android.graphics.Bitmap
 import android.graphics.Paint
+import android.os.Looper
 import android.text.SpannableStringBuilder
 import android.text.Spanned
 import android.view.View.MeasureSpec
@@ -22,6 +23,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
@@ -84,16 +86,30 @@ class ImageSpanReflowTest {
     ImageCache.putOriginal(ImageCache.requestKey(WIDE_URL, emptyMap()), Bitmap.createBitmap(800, 40, Bitmap.Config.ARGB_8888))
     val span = ImageSpan(context, WIDE_URL, styleConfig(inlineImageSize = 20.0), isInline = true)
     assertEquals(400, span.getSize(Paint(), "\uFFFC", 0, 1, null))
+    val text = SpannableStringBuilder("\uFFFC").apply { setSpan(span, 0, 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE) }
+    span.prepareForMeasurement(text, NARROW_WIDTH)
+    assertEquals(NARROW_WIDTH, span.getSize(Paint(), text, 0, 1, null))
+    assertEquals(NARROW_WIDTH, span.drawable.bounds.width())
 
     val view =
       EnrichedMarkdownInternalText(context).apply {
         layoutParams = ViewGroup.LayoutParams(NARROW_WIDTH, ViewGroup.LayoutParams.WRAP_CONTENT)
-        applyStyledText(SpannableStringBuilder("\uFFFC").apply { setSpan(span, 0, 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE) })
+        applyStyledText(text)
       }
     layOut(view, NARROW_WIDTH)
     span.registerTextView(view)
     layOut(view, NARROW_WIDTH)
 
+    assertEquals(NARROW_WIDTH, span.drawable.bounds.width())
+    assertEquals(NARROW_WIDTH / 20, span.drawable.bounds.height())
+    assertTrue(view.layout.getLineWidth(0) <= NARROW_WIDTH)
+    shadowOf(Looper.getMainLooper()).idle()
+
+    layOut(view, WIDTH)
+    assertEquals(WIDTH, span.drawable.bounds.width())
+    assertEquals(WIDTH / 20, span.drawable.bounds.height())
+
+    layOut(view, NARROW_WIDTH)
     assertEquals(NARROW_WIDTH, span.drawable.bounds.width())
     assertEquals(NARROW_WIDTH / 20, span.drawable.bounds.height())
     assertTrue(view.layout.getLineWidth(0) <= NARROW_WIDTH)

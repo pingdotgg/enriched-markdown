@@ -14,6 +14,7 @@ import android.text.Spannable
 import android.text.Spanned
 import android.text.style.LeadingMarginSpan
 import android.util.Log
+import android.view.View
 import android.widget.TextView
 import androidx.core.graphics.createBitmap
 import androidx.core.graphics.drawable.toDrawable
@@ -82,6 +83,10 @@ class ImageSpan(
   private var viewRef: WeakReference<TextView>? = null
   private var sourceDrawable: Drawable? = null
   private var onBoxHeightChanged: (() -> Unit)? = null
+  private val inlineLayoutListener =
+    View.OnLayoutChangeListener { view, left, _, right, _, oldLeft, _, oldRight, _ ->
+      if (right - left != oldRight - oldLeft) updateInlineLineWidth(getAvailableWidth(view as TextView))
+    }
 
   // An inline box keeps the image's aspect ratio at the inline height, shrinking both
   // sides to fit a narrower line. Square until the image's size is known.
@@ -135,7 +140,7 @@ class ImageSpan(
     if (widthPx <= 0) return
     if (isInline) {
       inlineLineWidth = availableWidthIn(text, widthPx)
-      updateInlineSize()
+      if (updateInlineSize() && sourceDrawable != null) wrapAndAssignDrawable(notifyLayout = false)
       return
     }
     if (!dynamicBoxHeight) return
@@ -169,7 +174,7 @@ class ImageSpan(
     }
   }
 
-  private fun wrapAndAssignDrawable() {
+  private fun wrapAndAssignDrawable(notifyLayout: Boolean = true) {
     val base = sourceDrawable ?: return
     val previousBoxHeight = boxHeight
     val targetWidth: Int
@@ -204,7 +209,7 @@ class ImageSpan(
           cacheKey = CacheKey(requestKey, targetWidth, boxHeight, borderRadiusPx, resizeMode),
         )
     }
-    requestReflow(boxHeightChanged = boxSizeChanged)
+    if (notifyLayout) requestReflow(boxHeightChanged = boxSizeChanged)
   }
 
   private fun requestReflow(boxHeightChanged: Boolean = false) {
@@ -253,8 +258,10 @@ class ImageSpan(
     onBoxHeightChanged: (() -> Unit)? = null,
   ) {
     this.onBoxHeightChanged = onBoxHeightChanged
+    if (isInline) viewRef?.get()?.removeOnLayoutChangeListener(inlineLayoutListener)
     viewRef = WeakReference(view)
     if (isInline) {
+      view.addOnLayoutChangeListener(inlineLayoutListener)
       updateInlineLineWidth(getAvailableWidth(view))
       view.post { updateInlineLineWidth(getAvailableWidth(view)) }
     } else {
