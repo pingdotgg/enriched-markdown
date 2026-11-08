@@ -41,6 +41,10 @@ static NSCache<NSString *, RCTUIImage *> *_processedImageCache;
 @property (nonatomic, strong) RCTUIImage *loadedImage;
 @property (nonatomic, strong) RCTUIImage *placeholderImage;
 @property (nonatomic, copy) NSString *lastProcessedKey;
+/// Usable width of the line an inline image was last laid out on (0 until then).
+@property (nonatomic, assign) CGFloat inlineLineWidth;
+/// The inline box the text layout last received from -attachmentBoundsForTextContainer:.
+@property (nonatomic, assign) CGSize laidOutInlineSize;
 
 @end
 
@@ -130,6 +134,20 @@ static NSCache<NSString *, RCTUIImage *> *_processedImageCache;
   return self.cachedHeight;
 }
 
+// The inline box keeps the image's aspect ratio at the inline height, shrinking both sides to
+// fit a narrower line. Square until the image's size is known.
+- (CGSize)inlineSizeForLineWidth:(CGFloat)lineWidth
+{
+  CGFloat height = self.cachedHeight;
+  CGSize source = self.originalImage.size;
+  CGFloat width = (source.width > 0 && source.height > 0) ? height * source.width / source.height : height;
+  if (lineWidth > 0 && width > lineWidth) {
+    height *= lineWidth / width;
+    width = lineWidth;
+  }
+  return CGSizeMake(width, height);
+}
+
 // True when resizeMode is unset ('') - legacy always implies a fixed height box.
 
 - (BOOL)isLegacyBlockSizing
@@ -142,13 +160,19 @@ static NSCache<NSString *, RCTUIImage *> *_processedImageCache;
                              glyphPosition:(CGPoint)position
                             characterIndex:(NSUInteger)characterIndex
 {
-  CGFloat height = self.cachedHeight;
-  CGFloat width = self.isInline ? height : (lineFragment.size.width > 0 ? lineFragment.size.width : height);
-
   if (!self.isInline) {
-    height = [self resolvedBoxHeightForWidth:width];
-    return CGRectMake(0, 0, width, height);
+    CGFloat width = lineFragment.size.width > 0 ? lineFragment.size.width : self.cachedHeight;
+    return CGRectMake(0, 0, width, [self resolvedBoxHeightForWidth:width]);
   }
+
+  // A load can land before the first draw (-imageForBounds:), and must find the view to relayout.
+  if (textContainer)
+    self.textContainer = textContainer;
+  self.inlineLineWidth = MAX(0, lineFragment.size.width - 2 * textContainer.lineFragmentPadding);
+  CGSize size = [self inlineSizeForLineWidth:self.inlineLineWidth];
+  self.laidOutInlineSize = size;
+  CGFloat width = size.width;
+  CGFloat height = size.height;
 
   UIFont *appliedFont = nil;
   NSLayoutManager *layoutManager = textContainer.layoutManager;
@@ -176,7 +200,7 @@ static NSCache<NSString *, RCTUIImage *> *_processedImageCache;
 
   if (self.originalImage && imageBounds.size.width > 0) {
     self.bounds = imageBounds;
-    [self processAndApplyImage:self.originalImage withTargetWidth:imageBounds.size.width];
+    [self processAndApplyImage:self.originalImage toSize:[self boxSizeForWidth:imageBounds.size.width]];
   }
 
   return self.loadedImage ?: self.placeholderImage;
@@ -196,22 +220,28 @@ static NSCache<NSString *, RCTUIImage *> *_processedImageCache;
   self.originalImage = image;
   // UIKit reads the plain image property for save/drag/copy — it must hold the original
   self.image = image;
-  CGFloat targetWidth = self.isInline ? self.cachedHeight : self.bounds.size.width;
-
   // Defer processing if we don't have valid bounds yet (common for non-inline block images)
-  if (!self.isInline && targetWidth <= 0) {
+  if (!self.isInline && self.bounds.size.width <= 0) {
     return;
   }
 
-  [self processAndApplyImage:image withTargetWidth:targetWidth];
+  [self processAndApplyImage:image toSize:[self boxSizeForWidth:self.bounds.size.width]];
 }
 
-- (void)processAndApplyImage:(RCTUIImage *)image withTargetWidth:(CGFloat)targetWidth
+// A block box spans the given width; an inline box follows the image (see -inlineSizeForLineWidth:).
+- (CGSize)boxSizeForWidth:(CGFloat)width
 {
-  if (targetWidth <= 0)
-    return;
+  if (self.isInline)
+    return [self inlineSizeForLineWidth:self.inlineLineWidth];
+  return CGSizeMake(width, [self resolvedBoxHeightForWidth:width]);
+}
 
-  CGFloat boxHeight = self.isInline ? self.cachedHeight : [self resolvedBoxHeightForWidth:targetWidth];
+- (void)processAndApplyImage:(RCTUIImage *)image toSize:(CGSize)size
+{
+  CGFloat targetWidth = size.width;
+  CGFloat boxHeight = size.height;
+  if (targetWidth <= 0 || boxHeight <= 0)
+    return;
 
   NSString *processedKey =
       CACHE_KEY_PROCESSED(self.cacheKey, targetWidth, boxHeight, self.cachedBorderRadius, self.cachedResizeMode);
@@ -248,7 +278,7 @@ static NSCache<NSString *, RCTUIImage *> *_processedImageCache;
     dispatch_async(dispatch_get_main_queue(), ^{
       strongSelf.loadedImage = processedImage;
       if (strongSelf.isInline) {
-        strongSelf.bounds = CGRectMake(0, 0, strongSelf.cachedHeight, strongSelf.cachedHeight);
+        strongSelf.bounds = CGRectMake(0, 0, targetWidth, boxHeight);
       }
       [strongSelf refreshDisplay];
     });
@@ -350,7 +380,9 @@ static NSCache<NSString *, RCTUIImage *> *_processedImageCache;
   NSRange range = [self findAttachmentRangeInText:textView.textStorage];
   if (range.location != NSNotFound) {
     [textView.layoutManager invalidateDisplayForCharacterRange:range];
-    if (!self.isInline) {
+    // An inline box changes when its image's size arrives; the line can wrap differently then.
+    if (!self.isInline ||
+        !CGSizeEqualToSize(self.laidOutInlineSize, [self inlineSizeForLineWidth:self.inlineLineWidth])) {
       [textView.layoutManager invalidateLayoutForCharacterRange:range actualCharacterRange:NULL];
       [self notifyImageLayoutObserver:textView];
     }
@@ -364,9 +396,9 @@ static NSCache<NSString *, RCTUIImage *> *_processedImageCache;
 // re-measuring would re-enter the layout manager.
 - (void)notifyImageLayoutObserver:(ENRMPlatformTextView *)textView
 {
-  // Only maxHeight/aspectRatio boxes can change height after load; a fixed
-  // height box (legacy or explicit resizeMode) never needs a re-measure.
-  if (self.cachedMaxHeight <= 0 && self.cachedAspectRatio <= 0)
+  // Only maxHeight/aspectRatio blocks and inline boxes can change size after load; a
+  // fixed height block (legacy or explicit resizeMode) never needs a re-measure.
+  if (!self.isInline && self.cachedMaxHeight <= 0 && self.cachedAspectRatio <= 0)
     return;
 
   id<ENRMImageLayoutObserver> observer = [textView enrm_imageLayoutObserver];

@@ -26,7 +26,15 @@ class LinkRenderer(
     val url = node.getAttribute("url") ?: return
     val recognizedLink = node.getAttribute("recognizedLink") == "true"
 
-    factory.renderWithSpan(builder, { factory.renderChildren(node, builder, onLinkPress, onLinkLongPress) }) { start, end, blockStyle ->
+    val renderContent = {
+      factory.linkDepth++
+      try {
+        factory.renderChildren(node, builder, onLinkPress, onLinkLongPress)
+      } finally {
+        factory.linkDepth--
+      }
+    }
+    factory.renderWithSpan(builder, renderContent) { start, end, blockStyle ->
       val variant = factory.styleCache.resolvedVariantForUrl(url)
       if (variant?.pill != null && canPresentAsPill(builder, start, end)) {
         val fontFamily = variant.fontFamily.ifEmpty { factory.styleCache.linkFontFamily }.ifEmpty { blockStyle.fontFamily }

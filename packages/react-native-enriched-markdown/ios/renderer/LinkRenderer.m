@@ -71,7 +71,9 @@ static NSRange ENRMCollapseLinkIntoPill(NSMutableAttributedString *output, NSRan
   NSUInteger start = output.length;
 
   // 1. Render children first to establish base attributes
+  context.linkDepth++;
   [_rendererFactory renderChildrenOfNode:node into:output context:context];
+  context.linkDepth--;
 
   NSRange range = NSMakeRange(start, output.length - start);
   if (range.length == 0)

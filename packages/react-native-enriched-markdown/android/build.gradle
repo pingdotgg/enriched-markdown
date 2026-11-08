@@ -292,6 +292,9 @@ dependencies {
   implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
   // Baseline Profile installer for AOT compilation hints
   implementation "androidx.profileinstaller:profileinstaller:1.3.1"
+  // SVG Markdown images (badges are SVG, often from URLs without an extension). The
+  // version Expo Image uses, so apps that have it resolve one copy.
+  implementation "com.caverock:androidsvg-aar:1.4"
   // LaTeX math rendering (optional — set enrichedMarkdown.enableMath=false in gradle.properties to exclude)
   if (enableMath) {
     implementation("io.github.erweixin:ratex-android:0.1.15")

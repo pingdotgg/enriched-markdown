@@ -1,4 +1,5 @@
 #import "ENRMLocalImageLoader.h"
+#import "ENRMImageDownloader.h"
 
 static NSString *_Nullable ENRMBundleRelativePath(NSString *path)
 {
@@ -21,10 +22,11 @@ static RCTUIImage *_Nullable ENRMImageAtPath(NSString *path)
     path = [path stringByAppendingPathExtension:@"png"];
   }
 #if !TARGET_OS_OSX
-  return [RCTUIImage imageWithContentsOfFile:path];
+  RCTUIImage *image = [RCTUIImage imageWithContentsOfFile:path];
 #else
-  return [[RCTUIImage alloc] initWithContentsOfFile:path];
+  RCTUIImage *image = [[RCTUIImage alloc] initWithContentsOfFile:path];
 #endif
+  return image ?: ENRMDecodeImageData([NSData dataWithContentsOfFile:path]);
 }
 
 BOOL ENRMIsLocalImageURL(NSString *url)

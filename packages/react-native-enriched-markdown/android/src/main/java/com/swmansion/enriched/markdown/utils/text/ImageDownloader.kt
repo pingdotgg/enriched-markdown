@@ -3,9 +3,14 @@ package com.swmansion.enriched.markdown.utils.text
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import android.graphics.RectF
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import androidx.core.graphics.createBitmap
+import com.caverock.androidsvg.SVG
+import com.caverock.androidsvg.SVGParseException
 import okhttp3.Cache
 import okhttp3.CacheControl
 import okhttp3.Call
@@ -16,6 +21,7 @@ import okhttp3.Response
 import java.io.File
 import java.io.IOException
 import java.util.concurrent.TimeUnit
+import kotlin.math.ceil
 
 object ImageDownloader {
   private const val TAG = "ImageDownloader"
@@ -31,6 +37,7 @@ object ImageDownloader {
   @Volatile
   private var headerClient: OkHttpClient? = null
   private var maxTargetWidth: Int = 0
+  private var density: Float = 1f
 
   private val inFlight = HashMap<String, MutableList<(Bitmap?) -> Unit>>()
 
@@ -39,6 +46,7 @@ object ImageDownloader {
       client ?: buildClient(context).also {
         client = it
         maxTargetWidth = context.applicationContext.resources.displayMetrics.widthPixels
+        density = context.applicationContext.resources.displayMetrics.density
       }
     }
 
@@ -120,7 +128,7 @@ object ImageDownloader {
             response.use {
               try {
                 val bytes = it.body?.bytes() ?: return@use null
-                decodeDownsampled(bytes, maxTargetWidth)
+                decodeDownsampled(bytes, maxTargetWidth, density)
               } catch (_: OutOfMemoryError) {
                 Log.e(TAG, "OOM decoding image: $url")
                 null
@@ -148,20 +156,53 @@ object ImageDownloader {
   private fun decodeDownsampled(
     bytes: ByteArray,
     targetWidth: Int,
+    density: Float,
     maxDimension: Int? = null,
   ): Bitmap? {
     val opts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
     BitmapFactory.decodeByteArray(bytes, 0, bytes.size, opts)
+    if (opts.outWidth <= 0 || opts.outHeight <= 0) return decodeSvg(bytes, targetWidth, density, maxDimension)
     return decodeWithSampleSize(opts, targetWidth, maxDimension) {
       BitmapFactory.decodeByteArray(bytes, 0, bytes.size, it)
     }
+  }
+
+  /**
+   * Rasterizes SVG bytes, which BitmapFactory cannot read, at the screen density and no
+   * wider than [targetWidth] (or [maxDimension] on the long side). Detected by content:
+   * badge services serve SVG from URLs without an extension.
+   */
+  private fun decodeSvg(
+    bytes: ByteArray,
+    targetWidth: Int,
+    density: Float,
+    maxDimension: Int?,
+  ): Bitmap? {
+    val svg =
+      try {
+        SVG.getFromInputStream(bytes.inputStream())
+      } catch (_: SVGParseException) {
+        return null
+      }
+    val viewBox = svg.documentViewBox
+    val documentWidth = svg.documentWidth.takeIf { it > 0f } ?: viewBox?.width() ?: return null
+    val documentHeight = svg.documentHeight.takeIf { it > 0f } ?: viewBox?.height() ?: return null
+    if (documentWidth <= 0f || documentHeight <= 0f) return null
+    // Without a viewBox the document draws at its own size instead of scaling to the bitmap.
+    if (viewBox == null) svg.setDocumentViewBox(0f, 0f, documentWidth, documentHeight)
+    val limit =
+      if (maxDimension != null) maxDimension / maxOf(documentWidth, documentHeight) else targetWidth / documentWidth
+    val scale = minOf(density, limit.takeIf { it > 0f } ?: density)
+    val bitmap = createBitmap(ceil(documentWidth * scale).toInt().coerceAtLeast(1), ceil(documentHeight * scale).toInt().coerceAtLeast(1))
+    svg.renderToCanvas(Canvas(bitmap), RectF(0f, 0f, bitmap.width.toFloat(), bitmap.height.toFloat()))
+    return bitmap
   }
 
   fun decodeBytesDownsampled(
     context: Context,
     bytes: ByteArray,
     maxDimension: Int? = null,
-  ): Bitmap? = decodeDownsampled(bytes, context.resources.displayMetrics.widthPixels, maxDimension)
+  ): Bitmap? = context.resources.displayMetrics.let { decodeDownsampled(bytes, it.widthPixels, it.density, maxDimension) }
 
   fun decodeFileDownsampled(
     context: Context,
@@ -171,6 +212,10 @@ object ImageDownloader {
     val targetWidth = context.resources.displayMetrics.widthPixels
     val opts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
     BitmapFactory.decodeFile(path, opts)
+    if (opts.outWidth <= 0 || opts.outHeight <= 0) {
+      val file = File(path).takeIf { it.isFile } ?: return null
+      return decodeSvg(file.readBytes(), targetWidth, context.resources.displayMetrics.density, maxDimension)
+    }
     return decodeWithSampleSize(opts, targetWidth, maxDimension) {
       BitmapFactory.decodeFile(path, it)
     }

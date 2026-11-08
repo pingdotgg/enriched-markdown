@@ -107,6 +107,9 @@ Pod::Spec.new do |s|
   s.exclude_files = exclude
   # Bounded decoding of native pill icons.
   s.frameworks = "ImageIO"
+  # SVG Markdown images (badges are SVG, often from URLs without an extension). The
+  # version Expo Image uses, so apps that have it resolve one copy.
+  s.dependency "SDWebImageSVGCoder", "~> 1.7.0"
 
   # Video playback (AVKit, built into iOS — no external framework or vendored asset).
   # Default on: consumers opt out via "enriched-markdown".enableVideo = false in package.json.

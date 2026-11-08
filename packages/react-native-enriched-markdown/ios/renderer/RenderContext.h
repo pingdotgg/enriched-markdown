@@ -49,6 +49,8 @@ typedef NS_ENUM(NSInteger, ListType) { ListTypeUnordered, ListTypeOrdered };
 @property (nonatomic, strong) BlockStyle *currentBlockStyle;
 @property (nonatomic, assign) NSInteger currentHeadingLevel;
 @property (nonatomic, assign) NSInteger blockquoteDepth;
+/// Links being rendered around the current node; an image inside one is inline.
+@property (nonatomic, assign) NSInteger linkDepth;
 @property (nonatomic, assign) NSInteger listDepth;
 @property (nonatomic, assign) ListType listType;
 @property (nonatomic, assign) NSInteger listItemNumber;

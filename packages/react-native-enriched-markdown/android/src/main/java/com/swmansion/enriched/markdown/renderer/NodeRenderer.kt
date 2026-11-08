@@ -35,6 +35,9 @@ class RendererFactory(
 
   val styleCache = SpanStyleCache(config.style)
 
+  /** Links being rendered around the current node; an image inside one is inline. */
+  var linkDepth = 0
+
   /**
    * Spans registered here are applied after the full document tree is rendered, so they
    * always end up after block-level spans in the SpannableStringBuilder's internal array.
@@ -92,6 +95,7 @@ class RendererFactory(
 
   fun resetForNewRender() {
     blockStyleContext.resetForNewRender()
+    linkDepth = 0
     deferredSpans.clear()
     afterRenderActions.clear()
   }

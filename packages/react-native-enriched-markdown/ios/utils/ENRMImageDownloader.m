@@ -2,6 +2,7 @@
 #import "ENRMImageAttachment.h"
 #import "ENRMLocalImageLoader.h"
 #import <CommonCrypto/CommonDigest.h>
+#import <SDWebImageSVGCoder/SDImageSVGCoder.h>
 #include <TargetConditionals.h>
 
 static const NSUInteger kDiskCacheMemoryCapacity = 10 * 1024 * 1024;
@@ -13,6 +14,28 @@ NSUInteger ENRMImageByteCost(RCTUIImage *image)
   if (!cgImage)
     return 0;
   return CGImageGetBytesPerRow(cgImage) * CGImageGetHeight(cgImage);
+}
+
+RCTUIImage *ENRMDecodeImageData(NSData *data)
+{
+  if (data.length == 0)
+    return nil;
+#if !TARGET_OS_OSX
+  RCTUIImage *image = [RCTUIImage imageWithData:data];
+#else
+  RCTUIImage *image = [[RCTUIImage alloc] initWithData:data];
+#endif
+  if (image)
+    return image;
+  SDImageSVGCoder *svg = SDImageSVGCoder.sharedCoder;
+  // A vector image: it draws sharp at whatever size the attachment scales it to.
+  return [svg canDecodeFromData:data] ? [svg decodedImageWithData:data options:nil] : nil;
+}
+
+NSUInteger ENRMDecodedImageCost(RCTUIImage *image, NSData *data)
+{
+  NSUInteger cost = ENRMImageByteCost(image);
+  return cost > 0 ? cost : data.length;
 }
 
 static NSDictionary<NSString *, NSString *> *ENRMNormalizedImageHeaders(NSDictionary<NSString *, NSString *> *headers)
@@ -145,16 +168,12 @@ NSString *ENRMImageCacheKey(NSString *url, NSDictionary<NSString *, NSString *> 
   NSURLSession *session = headers.count > 0 ? _headerSession : _session;
   [[session dataTaskWithRequest:request
               completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
-#if !TARGET_OS_OSX
-                RCTUIImage *image = (data && !error) ? [RCTUIImage imageWithData:data] : nil;
-#else
-        RCTUIImage *image = (data && !error) ? [[RCTUIImage alloc] initWithData:data] : nil;
-#endif
+                RCTUIImage *image = error ? nil : ENRMDecodeImageData(data);
 
                 if (image) {
                   [[ENRMImageAttachment originalImageCache] setObject:image
                                                                forKey:cacheKey
-                                                                 cost:ENRMImageByteCost(image)];
+                                                                 cost:ENRMDecodedImageCost(image, data)];
                 }
 
                 [self dispatchCallbacksForKey:cacheKey image:image];

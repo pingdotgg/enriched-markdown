@@ -8,6 +8,13 @@ FOUNDATION_EXPORT NSUInteger ENRMImageByteCost(RCTUIImage *image);
 
 typedef void (^ENRMImageDownloadCompletion)(RCTUIImage *_Nullable image);
 
+/// Decodes raster image data, falling back to SVG by content: badge services serve SVG
+/// from URLs without an extension.
+FOUNDATION_EXPORT RCTUIImage *_Nullable ENRMDecodeImageData(NSData *_Nullable data);
+
+/// Cache cost of an image decoded from data: its pixels, or the data for a vector image.
+FOUNDATION_EXPORT NSUInteger ENRMDecodedImageCost(RCTUIImage *image, NSData *data);
+
 /**
  * Cache identity for a remote image request. Returns the URL itself when no
  * headers are set; otherwise appends a SHA-256 digest of the sorted header

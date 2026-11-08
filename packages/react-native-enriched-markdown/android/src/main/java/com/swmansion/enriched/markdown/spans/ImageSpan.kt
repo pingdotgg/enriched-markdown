@@ -83,6 +83,27 @@ class ImageSpan(
   private var sourceDrawable: Drawable? = null
   private var onBoxHeightChanged: (() -> Unit)? = null
 
+  // An inline box keeps the image's aspect ratio at the inline height, shrinking both
+  // sides to fit a narrower line. Square until the image's size is known.
+  private var inlineLineWidth: Int = 0
+  private var inlineWidth: Int = height
+  private var inlineHeight: Int = height
+
+  /** Returns true when the inline box changed size. */
+  private fun updateInlineSize(): Boolean {
+    val (intrinsicWidth, intrinsicHeight) = intrinsicImageSize()
+    var width = if (intrinsicWidth > 0 && intrinsicHeight > 0) Math.round(height.toFloat() * intrinsicWidth / intrinsicHeight) else height
+    var boxHeight = height
+    if (inlineLineWidth in 1 until width) {
+      boxHeight = Math.round(boxHeight.toFloat() * inlineLineWidth / width).coerceAtLeast(1)
+      width = inlineLineWidth
+    }
+    val changed = width != inlineWidth || boxHeight != inlineHeight
+    inlineWidth = width.coerceAtLeast(1)
+    inlineHeight = boxHeight
+    return changed
+  }
+
   private fun intrinsicImageSize(): Pair<Int, Int> {
     sourceDrawable?.let { return it.intrinsicWidth to it.intrinsicHeight }
     val cached = ImageCache.getOriginal(requestKey) ?: return 0 to 0
@@ -111,7 +132,13 @@ class ImageSpan(
     text: Spanned,
     widthPx: Int,
   ) {
-    if (!dynamicBoxHeight || widthPx <= 0) return
+    if (widthPx <= 0) return
+    if (isInline) {
+      inlineLineWidth = availableWidthIn(text, widthPx)
+      updateInlineSize()
+      return
+    }
+    if (!dynamicBoxHeight) return
     val available = availableWidthIn(text, widthPx)
     if (available > 0) boxHeight = resolveBoxHeight(available)
   }
@@ -144,16 +171,18 @@ class ImageSpan(
 
   private fun wrapAndAssignDrawable() {
     val base = sourceDrawable ?: return
-    val targetWidth =
-      if (isInline) {
-        height
-      } else {
-        val available = viewRef?.get()?.let { getAvailableWidth(it) } ?: cachedWidth
-        available.coerceAtLeast(0)
-      }
-
     val previousBoxHeight = boxHeight
-    boxHeight = resolveBoxHeight(targetWidth)
+    val targetWidth: Int
+    val boxSizeChanged: Boolean
+    if (isInline) {
+      boxSizeChanged = updateInlineSize()
+      targetWidth = inlineWidth
+      boxHeight = inlineHeight
+    } else {
+      targetWidth = (viewRef?.get()?.let { getAvailableWidth(it) } ?: cachedWidth).coerceAtLeast(0)
+      boxHeight = resolveBoxHeight(targetWidth)
+      boxSizeChanged = boxHeight != previousBoxHeight
+    }
 
     val cachedBitmap = ImageCache.getProcessed(requestKey, targetWidth, boxHeight, borderRadiusPx, resizeMode)
 
@@ -175,7 +204,7 @@ class ImageSpan(
           cacheKey = CacheKey(requestKey, targetWidth, boxHeight, borderRadiusPx, resizeMode),
         )
     }
-    requestReflow(boxHeightChanged = boxHeight != previousBoxHeight)
+    requestReflow(boxHeightChanged = boxSizeChanged)
   }
 
   private fun requestReflow(boxHeightChanged: Boolean = false) {
@@ -196,7 +225,7 @@ class ImageSpan(
     }
     view.invalidate()
     view.requestLayout()
-    notifyBoxHeightMayHaveChanged(view)
+    if (!isInline || boxHeightChanged) notifyBoxHeightMayHaveChanged(view)
   }
 
   // With maxHeight/aspectRatio the box height can change after the image loads
@@ -204,7 +233,7 @@ class ImageSpan(
   // was measured with the pre-load value, so ask the owning component to
   // re-measure; it only propagates when the stored height actually changed.
   private fun notifyBoxHeightMayHaveChanged(view: TextView) {
-    if (!dynamicBoxHeight) return
+    if (!dynamicBoxHeight && !isInline) return
     // A self-measuring host (e.g. a table cell) sizes the image box itself and drives
     // its own re-layout, so bubbling up to the component would churn it and orphan this
     // freshly registered view. Let the host re-measure locally instead.
@@ -225,7 +254,10 @@ class ImageSpan(
   ) {
     this.onBoxHeightChanged = onBoxHeightChanged
     viewRef = WeakReference(view)
-    if (!isInline) {
+    if (isInline) {
+      updateInlineLineWidth(getAvailableWidth(view))
+      view.post { updateInlineLineWidth(getAvailableWidth(view)) }
+    } else {
       val availableWidth = getAvailableWidth(view)
       if (availableWidth > 0) {
         updateWidthAndRecreate(availableWidth)
@@ -235,6 +267,12 @@ class ImageSpan(
         if (postWidth != cachedWidth) updateWidthAndRecreate(postWidth)
       }
     }
+  }
+
+  private fun updateInlineLineWidth(width: Int) {
+    if (width <= 0 || width == inlineLineWidth) return
+    inlineLineWidth = width
+    if (sourceDrawable != null) wrapAndAssignDrawable()
   }
 
   private fun updateWidthAndRecreate(newWidth: Int) {
@@ -278,8 +316,12 @@ class ImageSpan(
   override fun getDrawable(): Drawable {
     val drawable = loadedDrawable ?: transparentDrawable
     if (drawable !is ScaledImageDrawable) {
-      val drawableWidth = if (isInline) height else cachedWidth.takeIf { it > 0 } ?: drawable.intrinsicWidth
-      drawable.setBounds(0, 0, drawableWidth.coerceAtLeast(0), boxHeight.coerceAtLeast(0))
+      if (isInline) {
+        drawable.setBounds(0, 0, inlineWidth, inlineHeight)
+      } else {
+        val drawableWidth = cachedWidth.takeIf { it > 0 } ?: drawable.intrinsicWidth
+        drawable.setBounds(0, 0, drawableWidth.coerceAtLeast(0), boxHeight.coerceAtLeast(0))
+      }
     }
     return drawable
   }
@@ -297,16 +339,16 @@ class ImageSpan(
       val imageTop = inlineImageTop(paint)
       fm.ascent = minOf(fm.ascent, floor(imageTop).toInt())
       fm.top = minOf(fm.top, fm.ascent)
-      fm.descent = maxOf(fm.descent, ceil(imageTop + height).toInt())
+      fm.descent = maxOf(fm.descent, ceil(imageTop + inlineHeight).toInt())
       fm.bottom = maxOf(fm.bottom, fm.descent)
     }
-    return getDrawable().bounds.right
+    return if (isInline) inlineWidth else getDrawable().bounds.right
   }
 
   /** The inline image's top relative to the baseline: centered on the cap height, as iOS places inline attachments. */
   private fun inlineImageTop(paint: Paint): Float {
     paint.getTextBounds("H", 0, 1, capBounds)
-    return -(capBounds.height() + height) / 2f
+    return -(capBounds.height() + inlineHeight) / 2f
   }
 
   override fun chooseHeight(
