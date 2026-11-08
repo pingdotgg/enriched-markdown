@@ -36,6 +36,7 @@ object MarkdownRenderTestSupport {
     blockquote: Map<String, Any> = emptyMap(),
     codeBlock: Map<String, Any> = emptyMap(),
     image: Map<String, Any> = emptyMap(),
+    inlineImageSize: Double = 20.0,
   ): StyleConfig {
     DisplayMetricsHolder.initDisplayMetricsIfNotInitialized(context)
     val style = JavaOnlyMap()
@@ -70,6 +71,7 @@ object MarkdownRenderTestSupport {
     style.putMap("list", textElement().apply { putAll(defaultList + list) })
     style.putMap("codeBlock", textElement().apply { putAll(defaultCodeBlock + codeBlock) })
     style.putMap("image", JavaOnlyMap().apply { putAll(defaultImage + image) })
+    style.putMap("inlineImage", JavaOnlyMap.of("size", inlineImageSize))
     return StyleConfig(style, context, false, 0f)
   }
 
