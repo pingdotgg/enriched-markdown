@@ -6,6 +6,8 @@ on:
   pull_request:
     branches:
       - main
+      # pingdotgg fork: T3 Code's archive branch takes contributor PRs too.
+      - fork/t3-mobile
       # The block renderers stack (#1026 → #1027 → #1028): its upper PRs target
       # these branches until the one below merges. Drop once the stack is in.
       - 'feat/block-renderers-*'
