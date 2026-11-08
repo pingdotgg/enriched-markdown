@@ -10,6 +10,7 @@ Prefixed e-mail autolinks: mailto:someone@example.com and
 xmpp:someone@example.com.
 
 Hash routes: https://studio.example.ts.net:9501/#/chat and https://example.com/#!/inbox?tab=all.
+See https://example.com/page#section; then pair at http://100.64.0.1:3773/pair#token=abc.
 
 > [!NOTE]
 > An admonition body.

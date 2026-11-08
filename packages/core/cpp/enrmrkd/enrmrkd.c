@@ -4499,7 +4499,7 @@ md_analyze_permissive_autolink(MD_CTX* ctx, int mark_index)
 
     /* Keep sentence punctuation outside scheme autolinks. */
     if(opener->ch == ':') {
-        while(end > opener->end && ISANYOF(end - 1, _T("?!.,:*")))
+        while(end > opener->end && ISANYOF(end - 1, _T("?!.,:;*")))
             end--;
     }
 
