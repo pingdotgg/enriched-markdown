@@ -1,6 +1,7 @@
 package com.swmansion.enriched.markdown
 
 import android.graphics.Bitmap
+import android.graphics.Color
 import android.graphics.Paint
 import android.os.Looper
 import android.text.SpannableStringBuilder
@@ -16,6 +17,7 @@ import com.swmansion.enriched.markdown.test.MarkdownRenderTestSupport.styleConfi
 import com.swmansion.enriched.markdown.test.TestAstFactory.paragraph
 import com.swmansion.enriched.markdown.test.TestAstFactory.text
 import com.swmansion.enriched.markdown.utils.text.ImageCache
+import com.swmansion.enriched.markdown.utils.text.ImageDownloader
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -80,6 +82,25 @@ class ImageSpanReflowTest {
     assertEquals(20, span.drawable.bounds.height())
   }
 
+  // Shields' live badges put every label inside an SVG <a>; a decoder that skips link
+  // children draws the badge frame with no text.
+  @Test
+  fun svgContentInsideALinkIsDrawn() {
+    val context = RuntimeEnvironment.getApplication()
+    val linked =
+      ImageDownloader.decodeBytesDownsampled(
+        context,
+        """<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"><a href="https://example.com"><rect width="20" height="20" fill="#f00"/></a></svg>"""
+          .toByteArray(),
+      )!!
+    assertEquals(Color.RED, linked.getPixel(linked.width / 2, linked.height / 2))
+
+    val stars = ImageDownloader.decodeBytesDownsampled(context, javaClass.getResource("/shields-github-stars.svg")!!.readBytes())!!
+    // Of the 88x20 badge, the "Stars" label spans x 22-49 and the "51k" count x 64-83, in #333.
+    assertTrue(hasDarkPixel(stars, 22..49))
+    assertTrue(hasDarkPixel(stars, 64..83))
+  }
+
   @Test
   fun inlineImageWiderThanTheLineShrinksWithoutDistortion() {
     val context = RuntimeEnvironment.getApplication()
@@ -124,6 +145,18 @@ class ImageSpanReflowTest {
       MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED),
     )
     view.layout(0, 0, view.measuredWidth, view.measuredHeight)
+  }
+
+  private fun hasDarkPixel(
+    badge: Bitmap,
+    columns: IntRange,
+  ): Boolean {
+    val scale = badge.width / 88f
+    return (columns.first * scale).toInt().until((columns.last * scale).toInt()).any { x ->
+      (4 * scale).toInt().until((16 * scale).toInt()).any { y ->
+        badge.getPixel(x, y).let { Color.alpha(it) > 0x80 && Color.red(it) < 0x80 }
+      }
+    }
   }
 
   private fun imageLineHeight(view: TextView): Int = view.layout.getLineBottom(0) - view.layout.getLineTop(0)
