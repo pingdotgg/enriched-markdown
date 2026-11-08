@@ -142,6 +142,12 @@
                         into:(NSMutableAttributedString *)output
                      context:(RenderContext *)context
 {
+  BOOL previousStandaloneImageLink = context.standaloneImageLink;
+  if (node.type == MarkdownNodeTypeParagraph) {
+    MarkdownASTNode *child = node.children.count == 1 ? node.children.firstObject : nil;
+    context.standaloneImageLink = child.type == MarkdownNodeTypeLink && child.children.count == 1 &&
+                                  child.children.firstObject.type == MarkdownNodeTypeImage;
+  }
   for (MarkdownASTNode *child in node.children) {
     if (child.type == MarkdownNodeTypeLineBreak) {
       NSAttributedString *lineBreak = [[NSAttributedString alloc] initWithString:@"\u2028"
@@ -162,6 +168,7 @@
       [self renderChildrenOfNode:child into:output context:context];
     }
   }
+  context.standaloneImageLink = previousStandaloneImageLink;
 }
 
 @end

@@ -19,7 +19,7 @@ static const unichar kZeroWidthSpace = 0x200B;
     return;
   }
 
-  BOOL isInline = context.linkDepth > 0 || [self isInlineImageInOutput:output];
+  BOOL isInline = (context.linkDepth > 0 && !context.standaloneImageLink) || [self isInlineImageInOutput:output];
   // Stamped by the parser only while image sources are overridden (BlockSlots.hpp).
   NSString *occurrenceId = node.attributes[@"imageOccurrenceId"];
   ENRMImageSourceOverride *source = occurrenceId ? _config.imageSourceOverrides[occurrenceId] : nil;

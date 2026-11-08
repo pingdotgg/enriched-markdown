@@ -35,7 +35,8 @@ class RendererFactory(
 
   val styleCache = SpanStyleCache(config.style)
 
-  /** Links being rendered around the current node; an image inside one is inline. */
+  /** A sole linked image keeps block sizing; other linked images are inline. */
+  var standaloneImageLink = false
   var linkDepth = 0
 
   /**
@@ -96,6 +97,7 @@ class RendererFactory(
   fun resetForNewRender() {
     blockStyleContext.resetForNewRender()
     linkDepth = 0
+    standaloneImageLink = false
     deferredSpans.clear()
     afterRenderActions.clear()
   }
@@ -184,7 +186,17 @@ class RendererFactory(
     onLinkPress: ((String) -> Unit)?,
     onLinkLongPress: ((String) -> Unit)?,
   ) {
-    renderNodes(node.children, builder, onLinkPress, onLinkLongPress)
+    val previousStandaloneImageLink = standaloneImageLink
+    if (node.type == MarkdownASTNode.NodeType.Paragraph) {
+      val child = node.children.singleOrNull()
+      standaloneImageLink =
+        child?.type == MarkdownASTNode.NodeType.Link && child.children.singleOrNull()?.type == MarkdownASTNode.NodeType.Image
+    }
+    try {
+      renderNodes(node.children, builder, onLinkPress, onLinkLongPress)
+    } finally {
+      standaloneImageLink = previousStandaloneImageLink
+    }
   }
 
   /**

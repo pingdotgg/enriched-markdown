@@ -17,7 +17,7 @@ class ImageRenderer : NodeRenderer {
   ) {
     val imageUrl = node.getAttribute("url") ?: return
 
-    val isInline = factory.linkDepth > 0 || builder.isInlineImage()
+    val isInline = (factory.linkDepth > 0 && !factory.standaloneImageLink) || builder.isInlineImage()
     val start = builder.length
 
     // Append Object Replacement Character as the span anchor

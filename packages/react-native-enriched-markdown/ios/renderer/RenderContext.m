@@ -315,6 +315,7 @@ static NSArray<NSString *> *ENRMScopedKeyPaths(void)
 
   _blockquoteDepth = 0;
   _linkDepth = 0;
+  _standaloneImageLink = NO;
   _listDepth = 0;
   _listType = ListTypeUnordered;
   _listItemNumber = 0;

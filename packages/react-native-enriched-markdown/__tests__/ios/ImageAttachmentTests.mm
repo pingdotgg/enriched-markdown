@@ -36,6 +36,18 @@ static ENRMImageAttachment *ENRMFirstImageAttachment(NSAttributedString *text)
   return found;
 }
 
+@interface ENRMImageTestTextView : UITextView <ENRMImageLayoutObserver>
+@property (nonatomic, strong) XCTestExpectation *layoutResolved;
+@end
+
+@implementation ENRMImageTestTextView
+- (void)imageAttachmentDidResolveLayout
+{
+  [self.layoutResolved fulfill];
+  self.layoutResolved = nil;
+}
+@end
+
 @interface ENRMImageAttachmentTests : XCTestCase
 @end
 
@@ -60,6 +72,13 @@ static ENRMImageAttachment *ENRMFirstImageAttachment(NSAttributedString *text)
   NSAttributedString *text = [renderer renderNodes:@[ paragraph ] context:[[RenderContext alloc] init] block:nil];
 
   XCTAssertTrue(ENRMFirstImageAttachment(text).isInline);
+
+  MarkdownASTNode *standalone = [[MarkdownASTNode alloc] initWithType:MarkdownNodeTypeParagraph];
+  [standalone addChild:link];
+  NSAttributedString *standaloneText = [renderer renderNodes:@[ standalone ]
+                                                     context:[[RenderContext alloc] init]
+                                                       block:nil];
+  XCTAssertFalse(ENRMFirstImageAttachment(standaloneText).isInline);
 }
 
 // Badges are SVG served without an extension; the type comes from the bytes. The image
@@ -73,7 +92,9 @@ static ENRMImageAttachment *ENRMFirstImageAttachment(NSAttributedString *text)
       [[NSMutableAttributedString alloc] initWithString:@"a "
                                              attributes:@{NSFontAttributeName : [UIFont systemFontOfSize:16]}];
   [text appendAttributedString:[NSAttributedString attributedStringWithAttachment:attachment]];
-  UITextView *textView = [[UITextView alloc] initWithFrame:CGRectMake(0, 0, 320, 400)];
+  XCTestExpectation *resolved = [self expectationWithDescription:@"inline image layout resolved"];
+  ENRMImageTestTextView *textView = [[ENRMImageTestTextView alloc] initWithFrame:CGRectMake(0, 0, 320, 400)];
+  textView.layoutResolved = resolved;
   textView.textContainer.lineFragmentPadding = 0;
   objc_setAssociatedObject(textView.textContainer, kTextViewKey, textView, OBJC_ASSOCIATION_ASSIGN);
   textView.attributedText = text;
@@ -86,10 +107,9 @@ static ENRMImageAttachment *ENRMFirstImageAttachment(NSAttributedString *text)
   };
   XCTAssertEqualWithAccuracy(laidOutSize().width, 20, 0.5);
 
-  NSPredicate *loaded = [NSPredicate
-      predicateWithBlock:^BOOL(id object, NSDictionary *bindings) { return fabs(laidOutSize().width - 100) < 0.5; }];
-  [self waitForExpectations:@[ [[XCTNSPredicateExpectation alloc] initWithPredicate:loaded object:nil] ] timeout:5];
+  [self waitForExpectations:@[ resolved ] timeout:5];
 
+  XCTAssertEqualWithAccuracy(laidOutSize().width, 100, 0.5);
   XCTAssertNotNil(attachment.image);
   XCTAssertEqualWithAccuracy(attachment.bounds.size.height, 20, 0.5);
 }

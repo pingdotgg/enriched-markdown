@@ -16,6 +16,7 @@ import com.swmansion.enriched.markdown.test.TestAstFactory.paragraph
 import com.swmansion.enriched.markdown.test.TestAstFactory.text
 import com.swmansion.enriched.markdown.utils.text.ImageCache
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -63,6 +64,9 @@ class ImageSpanReflowTest {
 
     val span = rendered.getSpans(0, rendered.length, ImageSpan::class.java).single()
     assertTrue(span.isInline)
+
+    val standalone = render(styleConfig(), paragraph(link))
+    assertFalse(standalone.getSpans(0, standalone.length, ImageSpan::class.java).single().isInline)
   }
 
   // Badges are SVG served without an extension; the type comes from the bytes.
