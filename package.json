@@ -55,8 +55,7 @@
     "clean": "yarn workspace react-native-enriched-markdown clean && del-cli apps/react-native-example/android/build apps/react-native-example/android/app/build apps/react-native-example/ios/build apps/react-native-macos-example/macos/build",
     "sync-md4c": "yarn workspace react-native-enriched-markdown sync-md4c",
     "prepare": "yarn workspace react-native-enriched-markdown prepare",
-    "release": "release-it --only-version",
-    "test:ios-streaming": "node scripts/test-enriched-markdown-native.mjs"
+    "release": "release-it --only-version"
   },
   "devDependencies": {
     "@commitlint/config-conventional": "^20.5.0",
