@@ -1,6 +1,6 @@
 {
   "name": "react-native-enriched-markdown",
-  "version": "1.2.0",
+  "version": "1.2.0-t3.19",
   "description": "Markdown-based Rich Text solution for React Native",
   "main": "./lib/module/index",
   "module": "./lib/module/index",
@@ -39,7 +39,9 @@
     "!**/__fixtures__",
     "!**/__mocks__",
     "!**/.*",
-    "!cpp/tests"
+    "!cpp/tests",
+    "docs",
+    "t3-fork.json"
   ],
   "scripts": {
     "postinstall": "node postinstall.mjs",
@@ -58,7 +60,8 @@
     "vendor-ratex": "node ../../vendor/vendor-ratex.mjs",
     "prepack": "bash ../../scripts/prepare-npm-publish.sh prepack",
     "postpack": "bash ../../scripts/prepare-npm-publish.sh postpack",
-    "prepare": "yarn vendor-grammars && yarn vendor-ratex && bob build"
+    "prepare": "yarn vendor-grammars && yarn vendor-ratex && bob build",
+    "pack:t3": "node ../../scripts/pack-t3.mjs"
   },
   "keywords": [
     "react-native",
@@ -72,7 +75,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/software-mansion/enriched-markdown.git",
+    "url": "git+https://github.com/juliusmarminge/enriched-markdown.git",
     "directory": "packages/react-native-enriched-markdown"
   },
   "author": "Gregory Moskaliuk <mosckalyuck@gmail.com> (https://github.com/hryhoriiK97)",

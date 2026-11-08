@@ -17281,7 +17281,21 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"react-native-enriched-markdown@npm:*, react-native-enriched-markdown@workspace:packages/react-native-enriched-markdown":
+"react-native-enriched-markdown@npm:*":
+  version: 1.1.1
+  resolution: "react-native-enriched-markdown@npm:1.1.1"
+  peerDependencies:
+    katex: ">=0.16.0"
+    react: "*"
+    react-native: "*"
+  peerDependenciesMeta:
+    katex:
+      optional: true
+  checksum: 10c0/c3df3edacc673bfbb4ee58c8deb69d36531a430ef3780a47a2f8a9829ba8fa79beb290132007f91dee00f8feffe92688830dfecdf115003c66157aac7dda662d
+  languageName: node
+  linkType: hard
+
+"react-native-enriched-markdown@workspace:packages/react-native-enriched-markdown":
   version: 0.0.0-use.local
   resolution: "react-native-enriched-markdown@workspace:packages/react-native-enriched-markdown"
   dependencies:
