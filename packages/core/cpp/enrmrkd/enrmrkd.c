@@ -4489,7 +4489,7 @@ md_analyze_permissive_autolink(MD_CTX* ctx, int mark_index)
         /* Scan for fragment segment. */
         if(end < line_end  &&  CH(end) == _T('#')) {
             if(md_analyze_permissive_autolink_segment(ctx, end+1, line_end, &end, false,
-                        _T('\0'), (opener->ch == ':' ? _T(".-+_:%~") : NULL),
+                        _T('\0'), (opener->ch == ':' ? _T(".-+_:%~/!?=&@,;") : NULL),
                         (opener->ch == ':' ? NULL : _T(".-+_")), &right_cursor) < 0)
                 return;
         }
@@ -4497,7 +4497,7 @@ md_analyze_permissive_autolink(MD_CTX* ctx, int mark_index)
 
     /* Keep sentence punctuation outside scheme autolinks. */
     if(opener->ch == ':') {
-        while(end > opener->end && ISANYOF(end - 1, _T("?!.,:*")))
+        while(end > opener->end && ISANYOF(end - 1, _T("?!.,:;*")))
             end--;
     }
 
