@@ -16,6 +16,26 @@ NSUInteger ENRMImageByteCost(RCTUIImage *image)
   return CGImageGetBytesPerRow(cgImage) * CGImageGetHeight(cgImage);
 }
 
+// CoreSVG skips everything inside an <a>, and Shields badges put their labels there. A link
+// does nothing in a decoded image, so draw it as the group it otherwise is.
+static NSData *ENRMSvgDataDrawingLinks(NSData *data)
+{
+  NSString *svg = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
+  if (!svg)
+    return data;
+  static NSRegularExpression *linkTag;
+  static dispatch_once_t onceToken;
+  dispatch_once(&onceToken, ^{
+    linkTag = [NSRegularExpression regularExpressionWithPattern:@"<(/?)((?:[A-Za-z_][\\w.-]*:)?)a(?=[\\s/>])"
+                                                        options:0
+                                                          error:nil];
+  });
+  return [[linkTag stringByReplacingMatchesInString:svg
+                                            options:0
+                                              range:NSMakeRange(0, svg.length)
+                                       withTemplate:@"<$1$2g"] dataUsingEncoding:NSUTF8StringEncoding];
+}
+
 RCTUIImage *ENRMDecodeImageData(NSData *data)
 {
   if (data.length == 0)
@@ -29,7 +49,7 @@ RCTUIImage *ENRMDecodeImageData(NSData *data)
     return image;
   SDImageSVGCoder *svg = SDImageSVGCoder.sharedCoder;
   // A vector image: it draws sharp at whatever size the attachment scales it to.
-  return [svg canDecodeFromData:data] ? [svg decodedImageWithData:data options:nil] : nil;
+  return [svg canDecodeFromData:data] ? [svg decodedImageWithData:ENRMSvgDataDrawingLinks(data) options:nil] : nil;
 }
 
 NSUInteger ENRMDecodedImageCost(RCTUIImage *image, NSData *data)
