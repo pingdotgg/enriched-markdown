@@ -3618,13 +3618,15 @@ md_collect_marks(MD_CTX* ctx, const MD_LINE* lines, ENRMRKD_SIZE n_lines, int ta
                     if(flags != 0)
                         ADD_MARK(ch, off, tmp, flags);
                 } else if(tmp - off <= 2  &&  (ctx->parser.flags & ENRMRKD_FLAG_STRIKETHROUGH)) {
-                    /* Strikethrough: standard GFM left/right-flanking rules. */
-                    unsigned flags = MD_MARK_POTENTIAL_OPENER | MD_MARK_POTENTIAL_CLOSER;
+                    /* Strikethrough: same flanking as `*` emphasis, as on GitHub. */
+                    int left_level = (off == line->beg  ||  ISUNICODEWHITESPACEBEFORE(off)) ? 0 : (ISUNICODEPUNCTBEFORE(off) ? 1 : 2);
+                    int right_level = (tmp == line->end  ||  ISUNICODEWHITESPACE(tmp)) ? 0 : (ISUNICODEPUNCT(tmp) ? 1 : 2);
+                    unsigned flags = 0;
 
-                    if(off > line->beg  &&  !ISUNICODEWHITESPACEBEFORE(off)  &&  !ISUNICODEPUNCTBEFORE(off))
-                        flags &= ~MD_MARK_POTENTIAL_OPENER;
-                    if(tmp < line->end  &&  !ISUNICODEWHITESPACE(tmp)  &&  !ISUNICODEPUNCT(tmp))
-                        flags &= ~MD_MARK_POTENTIAL_CLOSER;
+                    if(left_level > 0  &&  left_level >= right_level)
+                        flags |= MD_MARK_POTENTIAL_CLOSER;
+                    if(right_level > 0  &&  right_level >= left_level)
+                        flags |= MD_MARK_POTENTIAL_OPENER;
                     if(flags != 0)
                         ADD_MARK(ch, off, tmp, flags);
                 }
