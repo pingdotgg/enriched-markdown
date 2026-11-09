@@ -50,6 +50,7 @@ import com.swmansion.enriched.markdown.utils.common.layout.isLayoutRTL
 import com.swmansion.enriched.markdown.utils.text.extensions.replaceMathSpansWithPlaceholders
 import com.swmansion.enriched.markdown.utils.text.span.prepareWidthAwareSpans
 import com.swmansion.enriched.markdown.utils.text.view.isAdoptedText
+import com.swmansion.enriched.markdown.utils.text.view.inViewSpanOrder
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.abs
 import kotlin.math.ceil
@@ -1229,7 +1230,7 @@ object MeasurementStore {
   ): StaticLayout {
     val builder =
       StaticLayout.Builder
-        .obtain(content, 0, content.length, paint, widthPx)
+        .obtain(inViewSpanOrder(content), 0, content.length, paint, widthPx)
         .setIncludePad(false)
         .setLineSpacing(0f, 1f)
 
