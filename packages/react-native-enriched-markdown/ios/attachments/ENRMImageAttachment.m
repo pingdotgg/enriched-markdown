@@ -38,6 +38,8 @@ static NSCache<NSString *, RCTUIImage *> *_processedImageCache;
 @property (nonatomic, weak) NSTextContainer *textContainer;
 @property (nonatomic, weak) ENRMPlatformTextView *textView;
 @property (nonatomic, strong) RCTUIImage *originalImage;
+/// The loaded image's size, known as soon as it arrives on any thread; layout reads only this.
+@property (atomic, assign) CGSize intrinsicImageSize;
 @property (nonatomic, strong) RCTUIImage *loadedImage;
 @property (nonatomic, strong) RCTUIImage *placeholderImage;
 @property (nonatomic, copy) NSString *lastProcessedKey;
@@ -121,9 +123,9 @@ static NSCache<NSString *, RCTUIImage *> *_processedImageCache;
   }
 
   if (self.cachedMaxHeight > 0) {
-    RCTUIImage *source = self.originalImage;
-    if (source && width > 0 && source.size.width > 0 && source.size.height > 0) {
-      CGFloat fitted = width * source.size.height / source.size.width;
+    CGSize source = self.intrinsicImageSize;
+    if (width > 0 && source.width > 0 && source.height > 0) {
+      CGFloat fitted = width * source.height / source.width;
       return MIN(self.cachedMaxHeight, fitted);
     }
     // Intrinsic size not known yet — fall back to the full max height; the box
@@ -139,7 +141,7 @@ static NSCache<NSString *, RCTUIImage *> *_processedImageCache;
 - (CGSize)inlineSizeForLineWidth:(CGFloat)lineWidth
 {
   CGFloat height = self.cachedHeight;
-  CGSize source = self.originalImage.size;
+  CGSize source = self.intrinsicImageSize;
   CGFloat width = (source.width > 0 && source.height > 0) ? height * source.width / source.height : height;
   if (lineWidth > 0 && width > lineWidth) {
     height *= lineWidth / width;
@@ -211,7 +213,9 @@ static NSCache<NSString *, RCTUIImage *> *_processedImageCache;
   if (!image)
     return;
 
-  // The downloader completes synchronously on cache hits, which can happen on the render queue
+  // Cache hits complete synchronously, possibly on the render queue, where view-free measurement
+  // lays this attachment out before main runs. Record the size now; adopt the image on main.
+  self.intrinsicImageSize = image.size;
   if (!NSThread.isMainThread) {
     dispatch_async(dispatch_get_main_queue(), ^{ [self handleLoadedImage:image]; });
     return;
