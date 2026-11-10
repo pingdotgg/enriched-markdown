@@ -244,6 +244,32 @@ static ENRMImageAttachment *ENRMFirstImageAttachment(NSAttributedString *text)
                                                 characterIndex:0];
   XCTAssertEqualWithAccuracy(narrow.size.width, 200, 0.5);
   XCTAssertEqualWithAccuracy(narrow.size.height, 10, 0.5);
+
+  // View-free measurement builds attachments off the main thread, which stays blocked meanwhile.
+  // dispatch_sync could run the block on this thread, so wait on a semaphore instead.
+  __block BOOL ranOffMain = NO;
+  __block CGRect roomyOffMain = CGRectZero;
+  __block CGRect narrowOffMain = CGRectZero;
+  dispatch_semaphore_t measured = dispatch_semaphore_create(0);
+  dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+    ranOffMain = !NSThread.isMainThread;
+    ENRMImageAttachment *offMain = [ENRMImageAttachment attachmentForURL:url config:ENRMImageTestConfig() isInline:YES];
+    roomyOffMain = [offMain attachmentBoundsForTextContainer:nil
+                                        proposedLineFragment:CGRectMake(0, 0, 1000, 20)
+                                               glyphPosition:CGPointZero
+                                              characterIndex:0];
+    narrowOffMain = [offMain attachmentBoundsForTextContainer:nil
+                                         proposedLineFragment:CGRectMake(0, 0, 200, 20)
+                                                glyphPosition:CGPointZero
+                                               characterIndex:0];
+    dispatch_semaphore_signal(measured);
+  });
+  dispatch_semaphore_wait(measured, DISPATCH_TIME_FOREVER);
+  XCTAssertTrue(ranOffMain);
+  XCTAssertEqualWithAccuracy(roomyOffMain.size.width, 400, 0.5);
+  XCTAssertEqualWithAccuracy(roomyOffMain.size.height, 20, 0.5);
+  XCTAssertEqualWithAccuracy(narrowOffMain.size.width, 200, 0.5);
+  XCTAssertEqualWithAccuracy(narrowOffMain.size.height, 10, 0.5);
 }
 
 @end
