@@ -312,6 +312,7 @@ typedef struct ENRMRKD_BLOCK_OL_DETAIL {
 
 /* Detailed info for ENRMRKD_BLOCK_LI. */
 typedef struct ENRMRKD_BLOCK_LI_DETAIL {
+    unsigned number;            /* Source marker number in an ordered list. */
     int is_task;                /* Can be non-zero only with ENRMRKD_FLAG_TASKLISTS */
     ENRMRKD_CHAR task_mark;          /* If is_task, then one of 'x', 'X' or ' '. Undefined otherwise. */
     ENRMRKD_OFFSET task_mark_offset; /* If is_task, then offset in the input of the char between '[' and ']'. */

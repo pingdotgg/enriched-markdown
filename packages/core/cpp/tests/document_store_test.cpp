@@ -107,6 +107,14 @@ int main() {
   auto task = store.parse("- [x] task", strikeFlags, false)->ast->children.at(0)->children.at(0);
   check(task->children.at(0)->children.at(0)->content == "[x] task", "strikethrough does not enable task lists");
 
+  auto numbered = store.parse("1. A\n2. B\n\n5. E\n0. Z", flags, false)->ast->children.at(0);
+  const std::vector<std::string> numbers = {"1", "2", "5", "0"};
+  for (size_t i = 0; i < numbers.size(); i++) {
+    const auto &attrs = numbered->children.at(i)->attributes;
+    auto value = attrs.find("value");
+    check(value != attrs.end() && value->second == numbers[i], "ordered items keep their source number");
+  }
+
   // Old entries go, the one in use stays alive.
   for (int i = 0; i < 40; i++)
     store.parse("doc " + std::to_string(i), flags, true);

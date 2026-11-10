@@ -191,6 +191,8 @@ static void appendListMarkdown(MarkdownASTNode *node, NSMutableString *buffer, B
   for (MarkdownASTNode *item in node.children) {
     if (item.type != MarkdownNodeTypeListItem)
       continue;
+    if (ordered && item.attributes[@"value"] != nil)
+      number = [item.attributes[@"value"] integerValue];
     NSString *prefix = ordered ? [NSString stringWithFormat:@"%lu. ", (unsigned long)number] : @"- ";
     NSMutableString *content = [NSMutableString string];
     serializeBlockChildren(item, content);
@@ -339,9 +341,9 @@ NSString *markdownFromTableCellNode(MarkdownASTNode *node)
   if (![markdown containsString:@"\n"])
     return markdown;
   return [markdown stringByReplacingOccurrencesOfString:@"(?<!\\\\)(\\\\*)\n"
-                                            withString:@"$1$1<br>"
-                                               options:NSRegularExpressionSearch
-                                                 range:NSMakeRange(0, markdown.length)];
+                                             withString:@"$1$1<br>"
+                                                options:NSRegularExpressionSearch
+                                                  range:NSMakeRange(0, markdown.length)];
 }
 
 NSString *markdownFromBlockquoteNode(MarkdownASTNode *node)

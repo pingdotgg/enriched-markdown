@@ -69,7 +69,11 @@ NSString *const TaskIndexAttribute = @"TaskIndex";
   if (!context)
     return;
 
-  context.listItemNumber++;
+  if (context.listType == ListTypeOrdered && node.attributes[@"value"] != nil) {
+    context.listItemNumber = [node.attributes[@"value"] integerValue];
+  } else {
+    context.listItemNumber++;
+  }
   const NSInteger currentPosition = context.listItemNumber;
   const NSInteger currentDepth = context.listDepth; // 1-based (1 = top level)
 

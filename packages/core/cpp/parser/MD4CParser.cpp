@@ -323,6 +323,9 @@ public:
         auto node = std::make_shared<MarkdownASTNode>(NodeType::ListItem);
         if (detail) {
           auto *li = static_cast<ENRMRKD_BLOCK_LI_DETAIL *>(detail);
+          if (!impl->nodeStack.empty() && impl->nodeStack.back()->type == NodeType::OrderedList) {
+            node->setAttribute("value", std::to_string(li->number));
+          }
           if (li->is_task) {
             node->setAttribute(ATTR_IS_TASK, "true");
             node->setAttribute(ATTR_TASK_CHECKED, (li->task_mark == 'x' || li->task_mark == 'X') ? "true" : "false");

@@ -47,6 +47,7 @@ export type NodeType =
   | 'Video';
 
 export interface NodeAttributes {
+  value?: string;
   level?: string;
   url?: string;
   /** Stamped by recognizeTextLinks() — not present in the raw WASM output. */

@@ -100,6 +100,8 @@ static void applyListItemSpacing(NSMutableAttributedString *output, RenderContex
     for (MarkdownASTNode *item in node.children) {
       if (item.type != MarkdownNodeTypeListItem)
         continue;
+      if (item.attributes[@"value"] != nil)
+        number = [item.attributes[@"value"] integerValue];
       // Keep the existing gutter for one- and two-digit markers.
       if (number >= 100 && ![item.attributes[@"isTask"] isEqualToString:@"true"]) {
         context.listMarkerWidth = MAX(context.listMarkerWidth, [_config effectiveListMarginLeftForNumber:number]);

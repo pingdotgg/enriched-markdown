@@ -31,7 +31,8 @@ class ListItemRenderer(
     val isChecked = isTask && node.attributes["taskChecked"] == "true"
 
     if (listType == BlockStyleContext.ListType.ORDERED) {
-      styleContext.incrementListItemNumber()
+      val number = node.attributes["value"]?.toIntOrNull()
+      if (number != null) styleContext.listItemNumber = number else styleContext.incrementListItemNumber()
     }
 
     val taskIndex = if (isTask) styleContext.taskItemCount++ else -1

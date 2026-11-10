@@ -72,6 +72,7 @@ class ListRenderer(
     var number = startNumber
     for (item in node.children) {
       if (item.type != MarkdownASTNode.NodeType.ListItem) continue
+      number = item.attributes["value"]?.toIntOrNull() ?: number
       if (number >= 100 && item.attributes["isTask"] != "true") wideNumbers += number
       number++
     }

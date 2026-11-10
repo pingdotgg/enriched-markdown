@@ -219,6 +219,7 @@ object MarkdownASTSerializer {
       }
     for (item in node.children) {
       if (item.type != NodeType.ListItem) continue
+      if (ordered) number = item.attributes["value"]?.toIntOrNull() ?: number
       val prefix = if (ordered) "$number. " else "- "
       val content = serializeBlockChildren(item).trimEnd('\n')
       val lines = content.split("\n")
