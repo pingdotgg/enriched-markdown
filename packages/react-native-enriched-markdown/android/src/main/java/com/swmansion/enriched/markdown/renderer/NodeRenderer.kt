@@ -35,8 +35,8 @@ class RendererFactory(
 
   val styleCache = SpanStyleCache(config.style)
 
-  /** A sole linked image keeps block sizing; other linked images are inline. */
-  var standaloneImageLink = false
+  /** Linked images in a row of images draw inline; other linked images keep the usual sizing. */
+  var inImageRow = false
   var linkDepth = 0
 
   /**
@@ -97,7 +97,7 @@ class RendererFactory(
   fun resetForNewRender() {
     blockStyleContext.resetForNewRender()
     linkDepth = 0
-    standaloneImageLink = false
+    inImageRow = false
     deferredSpans.clear()
     afterRenderActions.clear()
   }
@@ -186,17 +186,32 @@ class RendererFactory(
     onLinkPress: ((String) -> Unit)?,
     onLinkLongPress: ((String) -> Unit)?,
   ) {
-    val previousStandaloneImageLink = standaloneImageLink
-    if (node.type == MarkdownASTNode.NodeType.Paragraph) {
-      val child = node.children.singleOrNull()
-      standaloneImageLink =
-        child?.type == MarkdownASTNode.NodeType.Link && child.children.singleOrNull()?.type == MarkdownASTNode.NodeType.Image
-    }
+    val previousInImageRow = inImageRow
+    if (node.type == MarkdownASTNode.NodeType.Paragraph) inImageRow = isImageRow(node.children)
     try {
       renderNodes(node.children, builder, onLinkPress, onLinkLongPress)
     } finally {
-      standaloneImageLink = previousStandaloneImageLink
+      inImageRow = previousInImageRow
     }
+  }
+
+  private fun isBreak(node: MarkdownASTNode) =
+    node.type == MarkdownASTNode.NodeType.LineBreak || node.type == MarkdownASTNode.NodeType.SoftBreak
+
+  /** Two or more images, linked or not, with only breaks and spaces between: a badge row. */
+  private fun isImageRow(children: List<MarkdownASTNode>): Boolean {
+    var images = 0
+    for (child in children) {
+      when {
+        child.type == MarkdownASTNode.NodeType.Image -> images++
+        child.type == MarkdownASTNode.NodeType.Link &&
+          child.children.isNotEmpty() &&
+          child.children.all { it.type == MarkdownASTNode.NodeType.Image } -> images += child.children.size
+        isBreak(child) || (child.type == MarkdownASTNode.NodeType.Text && child.content.isBlank()) -> {}
+        else -> return false
+      }
+    }
+    return images >= 2
   }
 
   /**

@@ -29,6 +29,33 @@
 #import "ThematicBreakRenderer.h"
 #import "UnderlineRenderer.h"
 
+static BOOL ENRMIsBreak(MarkdownASTNode *node)
+{
+  return node.type == MarkdownNodeTypeLineBreak || node.type == MarkdownNodeTypeSoftBreak;
+}
+
+/// Two or more images, linked or not, with only breaks and spaces between: a badge row.
+static BOOL ENRMIsImageRow(NSArray<MarkdownASTNode *> *children)
+{
+  NSUInteger images = 0;
+  for (MarkdownASTNode *child in children) {
+    if (child.type == MarkdownNodeTypeImage) {
+      images++;
+    } else if (child.type == MarkdownNodeTypeLink && child.children.count > 0) {
+      for (MarkdownASTNode *linked in child.children) {
+        if (linked.type != MarkdownNodeTypeImage)
+          return NO;
+      }
+      images += child.children.count;
+    } else if (!ENRMIsBreak(child) &&
+               !(child.type == MarkdownNodeTypeText &&
+                 [child.content stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceCharacterSet].length == 0)) {
+      return NO;
+    }
+  }
+  return images >= 2;
+}
+
 @implementation RendererFactory {
   StyleConfig *_config;
   NSMutableDictionary<NSNumber *, id<NodeRenderer>> *_cache;
@@ -142,12 +169,10 @@
                         into:(NSMutableAttributedString *)output
                      context:(RenderContext *)context
 {
-  BOOL previousStandaloneImageLink = context.standaloneImageLink;
-  if (node.type == MarkdownNodeTypeParagraph) {
-    MarkdownASTNode *child = node.children.count == 1 ? node.children.firstObject : nil;
-    context.standaloneImageLink = child.type == MarkdownNodeTypeLink && child.children.count == 1 &&
-                                  child.children.firstObject.type == MarkdownNodeTypeImage;
-  }
+  BOOL isParagraph = node.type == MarkdownNodeTypeParagraph;
+  BOOL previousInImageRow = context.inImageRow;
+  if (isParagraph)
+    context.inImageRow = ENRMIsImageRow(node.children);
   for (MarkdownASTNode *child in node.children) {
     if (child.type == MarkdownNodeTypeLineBreak) {
       NSAttributedString *lineBreak = [[NSAttributedString alloc] initWithString:@"\u2028"
@@ -168,7 +193,8 @@
       [self renderChildrenOfNode:child into:output context:context];
     }
   }
-  context.standaloneImageLink = previousStandaloneImageLink;
+  if (isParagraph)
+    context.inImageRow = previousInImageRow;
 }
 
 @end

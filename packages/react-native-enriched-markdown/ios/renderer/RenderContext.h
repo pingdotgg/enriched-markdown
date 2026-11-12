@@ -49,8 +49,8 @@ typedef NS_ENUM(NSInteger, ListType) { ListTypeUnordered, ListTypeOrdered };
 @property (nonatomic, strong) BlockStyle *currentBlockStyle;
 @property (nonatomic, assign) NSInteger currentHeadingLevel;
 @property (nonatomic, assign) NSInteger blockquoteDepth;
-/// A sole linked image keeps block sizing; other linked images are inline.
-@property (nonatomic, assign) BOOL standaloneImageLink;
+/// Linked images in a row of images draw inline; other linked images keep the usual sizing.
+@property (nonatomic, assign) BOOL inImageRow;
 @property (nonatomic, assign) NSInteger linkDepth;
 @property (nonatomic, assign) NSInteger listDepth;
 @property (nonatomic, assign) ListType listType;

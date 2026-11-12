@@ -127,23 +127,32 @@ static ENRMImageAttachment *ENRMFirstImageAttachment(NSAttributedString *text)
 
 // pingdotgg/t3code#32724: a README badge row starts with a linked image, which nothing
 // precedes, so it was laid out as a block image.
-- (void)testLinkedImageAtTheStartOfAParagraphIsInline
+- (void)testLinkedImagesInABadgeRowAreInline
 {
   MarkdownASTNode *image = [[MarkdownASTNode alloc] initWithType:MarkdownNodeTypeImage];
   image.attributes[@"url"] = @"test://linked-badge";
   MarkdownASTNode *link = [[MarkdownASTNode alloc] initWithType:MarkdownNodeTypeLink];
   link.attributes[@"url"] = @"https://example.com";
   [link addChild:image];
-  MarkdownASTNode *after = [[MarkdownASTNode alloc] initWithType:MarkdownNodeTypeText];
-  after.content = @" after";
-  MarkdownASTNode *paragraph = [[MarkdownASTNode alloc] initWithType:MarkdownNodeTypeParagraph];
-  [paragraph addChild:link];
-  [paragraph addChild:after];
-
+  MarkdownASTNode *space = [[MarkdownASTNode alloc] initWithType:MarkdownNodeTypeText];
+  space.content = @" ";
+  MarkdownASTNode *row = [[MarkdownASTNode alloc] initWithType:MarkdownNodeTypeParagraph];
+  [row addChild:link];
+  [row addChild:space];
+  [row addChild:link];
   AttributedRenderer *renderer = [[AttributedRenderer alloc] initWithConfig:ENRMImageTestConfig()];
-  NSAttributedString *text = [renderer renderNodes:@[ paragraph ] context:[[RenderContext alloc] init] block:nil];
+  NSAttributedString *rowText = [renderer renderNodes:@[ row ] context:[[RenderContext alloc] init] block:nil];
+  XCTAssertTrue(ENRMFirstImageAttachment(rowText).isInline);
 
-  XCTAssertTrue(ENRMFirstImageAttachment(text).isInline);
+  MarkdownASTNode *caption = [[MarkdownASTNode alloc] initWithType:MarkdownNodeTypeText];
+  caption.content = @" Watch the intro";
+  MarkdownASTNode *captioned = [[MarkdownASTNode alloc] initWithType:MarkdownNodeTypeParagraph];
+  [captioned addChild:link];
+  [captioned addChild:caption];
+  NSAttributedString *captionedText = [renderer renderNodes:@[ captioned ]
+                                                    context:[[RenderContext alloc] init]
+                                                      block:nil];
+  XCTAssertFalse(ENRMFirstImageAttachment(captionedText).isInline);
 
   MarkdownASTNode *standalone = [[MarkdownASTNode alloc] initWithType:MarkdownNodeTypeParagraph];
   [standalone addChild:link];

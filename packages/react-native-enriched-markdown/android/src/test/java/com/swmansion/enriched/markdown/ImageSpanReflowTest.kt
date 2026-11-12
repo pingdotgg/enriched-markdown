@@ -61,13 +61,14 @@ class ImageSpanReflowTest {
   // Issue pingdotgg/t3code#32724: a README badge row starts with a linked image, which
   // nothing precedes, so it was laid out as a block image.
   @Test
-  fun linkedImageAtTheStartOfAParagraphIsInline() {
+  fun linkedImagesInABadgeRowAreInline() {
     val image = MarkdownASTNode(NodeType.Image, attributes = mapOf("url" to "test://linked-badge"))
     val link = MarkdownASTNode(NodeType.Link, attributes = mapOf("url" to "https://example.com"), children = listOf(image))
-    val rendered = render(styleConfig(), paragraph(link, text(" after")))
+    val row = render(styleConfig(), paragraph(link, text(" "), link, MarkdownASTNode(NodeType.SoftBreak), link))
+    assertTrue(row.getSpans(0, row.length, ImageSpan::class.java).all { it.isInline })
 
-    val span = rendered.getSpans(0, rendered.length, ImageSpan::class.java).single()
-    assertTrue(span.isInline)
+    val captioned = render(styleConfig(), paragraph(link, text(" Watch the intro")))
+    assertFalse(captioned.getSpans(0, captioned.length, ImageSpan::class.java).single().isInline)
 
     val standalone = render(styleConfig(), paragraph(link))
     assertFalse(standalone.getSpans(0, standalone.length, ImageSpan::class.java).single().isInline)
