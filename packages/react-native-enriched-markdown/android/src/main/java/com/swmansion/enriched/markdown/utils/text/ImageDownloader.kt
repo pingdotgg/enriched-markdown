@@ -190,6 +190,9 @@ object ImageDownloader {
     if (documentWidth <= 0f || documentHeight <= 0f) return null
     // Without a viewBox the document draws at its own size instead of scaling to the bitmap.
     if (viewBox == null) svg.setDocumentViewBox(0f, 0f, documentWidth, documentHeight)
+    // A root width and height draw at that many pixels, ignoring the larger viewport.
+    svg.setDocumentWidth("100%")
+    svg.setDocumentHeight("100%")
     val limit =
       if (maxDimension != null) maxDimension / maxOf(documentWidth, documentHeight) else targetWidth / documentWidth
     val scale = minOf(density, limit.takeIf { it > 0f } ?: density)
