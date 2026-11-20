@@ -5,6 +5,7 @@
 #import "ENRMAsyncRenderCoordinator.h"
 #import "ENRMAtomicSize.h"
 #import "ENRMContextMenuTextView+macOS.h"
+#import "ENRMHighlightCoordinator.h"
 #import "ENRMImageAttachment.h"
 #import "ENRMLatexErrorCoordinator.h"
 #import "ENRMLinkContextMenus.h"
@@ -15,6 +16,7 @@
 #import "ENRMSpoilerOverlayManager.h"
 #import "ENRMSpoilerTapUtils.h"
 #import "ENRMTailFadeInAnimator.h"
+#import "ENRMTextHighlightProps.h"
 #import "ENRMTextInteractionUtils.h"
 #import "ENRMTextRenderer.h"
 #import "ENRMTextViewSetup.h"
@@ -152,6 +154,9 @@ typedef NS_OPTIONS(NSUInteger, ENRMDirtyFlags) {
   ENRMAtomicSize _lastCommittedSize;
 
   ENRMLatexErrorCoordinator *_latexErrorCoordinator;
+
+  ENRMHighlightCoordinator *_highlightCoordinator;
+  BOOL _enableRenderedTextChange;
 }
 
 + (ComponentDescriptorProvider)componentDescriptorProvider
@@ -340,6 +345,17 @@ typedef NS_OPTIONS(NSUInteger, ENRMDirtyFlags) {
     _resolvedLayoutDirection =
         [[RCTI18nUtil sharedInstance] isRTL] ? NSWritingDirectionRightToLeft : NSWritingDirectionLeftToRight;
     _dirtyFlags = ENRMDirtyNone;
+
+    _highlightCoordinator = [[ENRMHighlightCoordinator alloc] initWithHost:self];
+    __weak __typeof(self) weakHighlightSelf = self;
+    _highlightCoordinator.onLayout = ^(NSArray<ENRMHighlightRect *> *rects) {
+      __typeof(self) strongSelf = weakHighlightSelf;
+      if (!strongSelf)
+        return;
+      auto emitter = std::static_pointer_cast<EnrichedMarkdownTextEventEmitter const>(strongSelf->_eventEmitter);
+      if (emitter)
+        ENRMEmitHighlightLayout(*emitter, rects);
+    };
 
     _fontScaleObserver = [[FontScaleObserver alloc] init];
     __weak EnrichedMarkdownText *weakSelf = self;
@@ -623,6 +639,11 @@ typedef NS_OPTIONS(NSUInteger, ENRMDirtyFlags) {
     }
   }
 
+  if ([_highlightCoordinator setBlockViews:@[ _textView ]] && _enableRenderedTextChange) {
+    [self emitRenderedTextChange];
+  }
+  [_highlightCoordinator reportLayout];
+
   if (_textView.hidden) {
     dispatch_async(dispatch_get_main_queue(), ^{ self->_textView.hidden = NO; });
   }
@@ -641,8 +662,16 @@ typedef NS_OPTIONS(NSUInteger, ENRMDirtyFlags) {
 {
   [super layoutSubviews];
   [_spoilerManager updateIfNeeded];
+  [_highlightCoordinator reportLayout];
 }
 #endif
+
+- (void)emitRenderedTextChange
+{
+  auto emitter = std::static_pointer_cast<EnrichedMarkdownTextEventEmitter const>(_eventEmitter);
+  if (emitter)
+    ENRMEmitRenderedTextChange(*emitter, _highlightCoordinator);
+}
 
 - (void)updateProps:(Props::Shared const &)props oldProps:(Props::Shared const &)oldProps
 {
@@ -765,6 +794,17 @@ typedef NS_OPTIONS(NSUInteger, ENRMDirtyFlags) {
   _enableImagePress = newViewProps.enableImagePress;
   _enableTextPress = newViewProps.enableTextPress;
   _enableCodeBlockPress = newViewProps.enableCodeBlockPress;
+
+  if (ENRMTextHighlightPropsChanged(oldViewProps.highlights, newViewProps.highlights)) {
+    _highlightCoordinator.highlights = ENRMTextHighlightsFromProps(newViewProps.highlights);
+  }
+  if (newViewProps.enableRenderedTextChange != oldViewProps.enableRenderedTextChange) {
+    _enableRenderedTextChange = newViewProps.enableRenderedTextChange;
+    // A listener added after the first render still hears about it.
+    if (_enableRenderedTextChange && _renderedMarkdown != nil) {
+      [self emitRenderedTextChange];
+    }
+  }
 
   if (ENRMLinkContextMenuItemsChanged(oldViewProps.linkContextMenuItems, newViewProps.linkContextMenuItems)) {
     _linkContextMenus.entries = ENRMLinkContextMenuEntriesFromProps(newViewProps.linkContextMenuItems);
@@ -952,6 +992,8 @@ typedef NS_OPTIONS(NSUInteger, ENRMDirtyFlags) {
   _accessibilityNeedsRebuild = NO;
   [_spoilerManager removeAllOverlays];
   _spoilerManager = nil;
+  [_highlightCoordinator reset];
+  _enableRenderedTextChange = NO;
   if (_textView != nil) {
     ENRMSetAttributedText(_textView, [[NSAttributedString alloc] initWithString:@""]);
     _textView.hidden = YES;
