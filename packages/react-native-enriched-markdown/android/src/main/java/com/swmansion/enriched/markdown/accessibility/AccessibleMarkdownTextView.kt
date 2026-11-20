@@ -1,11 +1,14 @@
 package com.swmansion.enriched.markdown.accessibility
 
 import android.content.Context
+import android.graphics.Canvas
 import android.graphics.Rect
 import android.util.AttributeSet
 import android.view.KeyEvent
 import android.view.MotionEvent
 import androidx.appcompat.widget.AppCompatTextView
+import com.swmansion.enriched.markdown.highlight.TextHighlightHost
+import com.swmansion.enriched.markdown.highlight.TextHighlightPainter
 import com.swmansion.enriched.markdown.spans.LinkPillSpan
 import com.swmansion.enriched.markdown.utils.text.span.prepareWidthAwareSpans
 
@@ -16,8 +19,18 @@ abstract class AccessibleMarkdownTextView
     context: Context,
     attrs: AttributeSet? = null,
     defStyleAttr: Int = 0,
-  ) : AppCompatTextView(context, attrs, defStyleAttr) {
+  ) : AppCompatTextView(context, attrs, defStyleAttr),
+    TextHighlightHost {
     val accessibilityHelper = MarkdownAccessibilityHelper(this)
+
+    override val highlightPainter = TextHighlightPainter(this)
+
+    // Highlights go under the text and the selection, which TextView draws next.
+    override fun onDraw(canvas: Canvas) {
+      highlightPainter.draw(canvas)
+      super.onDraw(canvas)
+      highlightPainter.drawOverBackgrounds(canvas)
+    }
 
     override fun setText(
       text: CharSequence?,
