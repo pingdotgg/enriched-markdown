@@ -25,11 +25,11 @@ abstract class AccessibleMarkdownTextView
 
     override val highlightPainter = TextHighlightPainter(this)
 
-    // Highlights go under the text and the selection, which TextView draws next.
+    // Spannable text draws its highlights through a line background span; other text
+    // draws them here, under the text and the selection, which TextView draws next.
     override fun onDraw(canvas: Canvas) {
-      highlightPainter.draw(canvas)
+      if (!highlightPainter.isAttached) highlightPainter.draw(canvas)
       super.onDraw(canvas)
-      highlightPainter.drawOverBackgrounds(canvas)
     }
 
     override fun setText(
@@ -42,6 +42,9 @@ abstract class AccessibleMarkdownTextView
       if (contentWidth > 0) prepareWidthAwareSpans(text, contentWidth, includeImages = false)
       LinkPillSpan.registerView(text, this)
       super.setText(text, type)
+      // The TextView constructor sets text before the painter exists.
+      @Suppress("SENSELESS_COMPARISON")
+      if (highlightPainter != null) highlightPainter.attach()
     }
 
     override fun onMeasure(
