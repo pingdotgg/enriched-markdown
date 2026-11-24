@@ -325,7 +325,7 @@ class EnrichedMarkdownText
         try {
           val ast =
             parser.parseMarkdown(markdown, md4cFlags, isGFM, textLinkRegex, codeLinkRegex) ?: run {
-              mainHandler.post { if (renderId == currentRenderId && isAttachedToWindow) text = "" }
+              mainHandler.post { if (renderId == currentRenderId && isAttachedToWindow) clearRenderedText() }
               return@execute
             }
 
@@ -343,7 +343,7 @@ class EnrichedMarkdownText
           }
         } catch (e: Exception) {
           Log.e(TAG, "Render failed: ${e.message}", e)
-          mainHandler.post { if (renderId == currentRenderId && isAttachedToWindow) text = "" }
+          mainHandler.post { if (renderId == currentRenderId && isAttachedToWindow) clearRenderedText() }
         }
       }
     }
@@ -379,6 +379,16 @@ class EnrichedMarkdownText
       applySelectionColors(selectionColor, selectionHandleColor)
 
       hasRendered = true
+      updateHighlightBlocks()
+    }
+
+    // A failed render leaves the view empty, and the rendered text reported for highlights must say so.
+    private fun clearRenderedText() {
+      text = ""
+      updateHighlightBlocks()
+    }
+
+    private fun updateHighlightBlocks() {
       if (highlightCoordinator.setBlockViews(listOf(this)) && renderedTextChangeEnabled) {
         emitRenderedTextChange(highlightCoordinator)
       }
