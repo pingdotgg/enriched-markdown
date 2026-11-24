@@ -1,5 +1,5 @@
 export type { LinkVariantStyle, LinkPillStyle } from './types/MarkdownStyle';
-export type { LinkPillContent } from './types/MarkdownTextProps';
+export type { LinkPillContent, TextHighlight } from './types/MarkdownTextProps';
 export type {
   LinkContextMenuItem,
   LinkRecognition,
@@ -32,6 +32,10 @@ export type {
   LinkLongPressEvent,
   ImagePressEvent,
   TextPressEvent,
+  RenderedTextBlock,
+  RenderedTextChangeEvent,
+  HighlightRect,
+  HighlightLayoutEvent,
   TaskListItemPressEvent,
   CopyPressEvent,
   LatexErrorEvent,

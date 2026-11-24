@@ -12,6 +12,10 @@ import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.ReadableMap
 import com.facebook.react.uimanager.StateWrapper
 import com.swmansion.enriched.markdown.accessibility.AccessibilityLabels
+import com.swmansion.enriched.markdown.highlight.TextHighlight
+import com.swmansion.enriched.markdown.highlight.TextHighlightCoordinator
+import com.swmansion.enriched.markdown.highlight.emitHighlightLayout
+import com.swmansion.enriched.markdown.highlight.emitRenderedTextChange
 import com.swmansion.enriched.markdown.math.LatexErrorReporter
 import com.swmansion.enriched.markdown.parser.Md4cFlags
 import com.swmansion.enriched.markdown.parser.Parser
@@ -487,6 +491,28 @@ class EnrichedMarkdown(
     textPressEnabled = enabled
   }
 
+  private val highlightCoordinator = TextHighlightCoordinator(this) { rects -> emitHighlightLayout(rects) }
+  private var renderedTextChangeEnabled = false
+  private var hasRendered = false
+
+  fun setHighlights(highlights: List<TextHighlight>) {
+    highlightCoordinator.highlights = highlights
+  }
+
+  fun setEnableRenderedTextChange(enabled: Boolean) {
+    if (renderedTextChangeEnabled == enabled) return
+    renderedTextChangeEnabled = enabled
+    // A listener added after the first render still hears about it.
+    if (enabled && hasRendered) emitRenderedTextChange(highlightCoordinator)
+  }
+
+  private fun updateHighlightBlocks() {
+    hasRendered = true
+    if (highlightCoordinator.setBlockViews(highlightBlockViews().toList()) && renderedTextChangeEnabled) {
+      emitRenderedTextChange(highlightCoordinator)
+    }
+  }
+
   fun setOnTaskListItemPressCallback(callback: ((taskIndex: Int, checked: Boolean, itemText: String) -> Unit)?) {
     onTaskListItemPressCallback = callback
   }
@@ -690,6 +716,7 @@ class EnrichedMarkdown(
       }
     }
     codeBlockWrapState.sync()
+    updateHighlightBlocks()
 
     if (width > 0) {
       val heightBefore = computeSegmentsTotalHeight()
@@ -901,6 +928,7 @@ class EnrichedMarkdown(
   ) {
     layoutSegments()
     slotLayer.layout(0, 0, width, height)
+    highlightCoordinator.reportLayout()
   }
 
   /** A root slot getting its first height while streaming grows into place ([BlockSlotRevealController]). */
