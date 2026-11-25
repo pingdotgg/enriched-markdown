@@ -160,11 +160,11 @@ void copyItemsToPasteboard(NSDictionary<NSString *, id> *items)
 #endif
 }
 
-void copyAttributedStringToPasteboard(NSAttributedString *attributedString, NSString *_Nullable markdown,
-                                      StyleConfig *_Nullable styleConfig)
+NSString *_Nullable copyAttributedStringToPasteboard(NSAttributedString *attributedString, NSString *_Nullable markdown,
+                                                     StyleConfig *_Nullable styleConfig)
 {
   if (!attributedString || attributedString.length == 0)
-    return;
+    return nil;
 
   // Expanded once here for the plain-text flavor; the exporters below then have nothing left to expand.
   attributedString = ENRMAttributedStringByExpandingLinkPills(attributedString, NULL);
@@ -192,6 +192,7 @@ void copyAttributedStringToPasteboard(NSAttributedString *attributedString, NSSt
   addRTFData(items, rtfPrepared, rtfRange, NSRTFTextDocumentType, kUTIRTF);
 
   copyItemsToPasteboard(items);
+  return items[kUTIPlainText];
 }
 
 #pragma mark - Content Extraction

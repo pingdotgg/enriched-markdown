@@ -38,15 +38,15 @@
 #import <React/RCTBackedTextInputDelegate.h>
 #endif
 
-#import <ReactNativeEnrichedMarkdown/EnrichedMarkdownTextInputComponentDescriptor.h>
+#import "EnrichedMarkdownTextInputComponentDescriptor.h"
 #import <react/renderer/components/EnrichedMarkdownTextSpec/EventEmitters.h>
 #import <react/renderer/components/EnrichedMarkdownTextSpec/Props.h>
 #import <react/renderer/components/EnrichedMarkdownTextSpec/RCTComponentViewHelpers.h>
 
 #import "EnrichedMarkdownTextInputShadowNode.h"
 #import "HeightUpdateUtils.h"
-#import "RCTFabricComponentsPlugins.h"
 #import <React/RCTConversions.h>
+#import <React/RCTFabricComponentsPlugins.h>
 
 using namespace facebook::react;
 
@@ -648,6 +648,15 @@ static const NSTimeInterval kENRMAtomicSnapPollInterval = 0.1;
 #endif
 
 #if !TARGET_OS_OSX
+
+#pragma mark - Hit testing
+
+- (UIView *)hitTest:(CGPoint)point withEvent:(UIEvent *)event
+{
+  UIView *hitView = [super hitTest:point withEvent:event];
+  return hitView == self ? _textView : hitView;
+}
+
 - (void)traitCollectionDidChange:(UITraitCollection *)previousTraitCollection
 {
   [super traitCollectionDidChange:previousTraitCollection];
