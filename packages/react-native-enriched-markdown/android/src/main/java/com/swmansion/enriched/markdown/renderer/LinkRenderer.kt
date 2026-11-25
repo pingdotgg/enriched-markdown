@@ -78,10 +78,20 @@ class LinkRenderer(
         if (iconStart != null) {
           val icon = LinkIconSpan(inlineIcon, linkSpan, blockStyle.fontSize, factory.context, config.style.imageRequestHeaders)
           builder.setSpan(icon, iconStart, iconRunEnd(builder, iconStart, end), SPAN_FLAGS_EXCLUSIVE_EXCLUSIVE)
-          // Bidi layout treats a replacement span as neutral, so in a paragraph with right-to-left
-          // text the covered word could move, or set the paragraph's direction. There the link keeps
-          // its text without the icon. Checked once the whole paragraph is rendered.
-          factory.runAfterRender { if (paragraphHasRightToLeft(builder, builder.getSpanStart(icon))) builder.removeSpan(icon) }
+          factory.runAfterRender {
+            val iconSpanStart = builder.getSpanStart(icon)
+            if (iconSpanStart < 0) return@runAfterRender
+            // Bidi layout treats a replacement span as neutral, so in a paragraph with right-to-left
+            // text the covered word could move, or set the paragraph's direction. There the link
+            // keeps its text without the icon.
+            if (paragraphHasRightToLeft(builder, iconSpanStart)) {
+              builder.removeSpan(icon)
+              return@runAfterRender
+            }
+            // Deferred spans (superscript) are in place only now, and their edges end the icon too.
+            val iconSpanEnd = iconRunEnd(builder, iconSpanStart, builder.getSpanEnd(linkSpan))
+            if (iconSpanEnd != builder.getSpanEnd(icon)) builder.setSpan(icon, iconSpanStart, iconSpanEnd, SPAN_FLAGS_EXCLUSIVE_EXCLUSIVE)
+          }
         }
       }
       builder.setSpan(linkSpan, start, end, SPAN_FLAGS_EXCLUSIVE_EXCLUSIVE)
