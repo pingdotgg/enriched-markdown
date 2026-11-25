@@ -44,6 +44,8 @@ try {
     'react-native.config.js',
     'postinstall.mjs',
     'ReactNativeEnrichedMarkdown.podspec',
+    'Package.swift',
+    'spm-plugin.js',
   ]) {
     const input = path.join(source, entry);
     if (existsSync(input))
