@@ -44,6 +44,8 @@ try {
     'react-native.config.js',
     'postinstall.mjs',
     'ReactNativeEnrichedMarkdown.podspec',
+    'Package.swift',
+    'spm-plugin.js',
   ]) {
     const input = path.join(source, entry);
     if (existsSync(input))
@@ -93,7 +95,7 @@ try {
       {
         repository: 'https://github.com/pingdotgg/enriched-markdown',
         commit: git('rev-parse', 'HEAD'),
-        upstreamCommit: '1d00a92abc3f7cf953946cf42f999523dec699dc',
+        upstreamCommit: '3a2c1ade8f54c8fb1a18b8f0db498dd0f7b49380',
         version: pkg.version,
       },
       null,
