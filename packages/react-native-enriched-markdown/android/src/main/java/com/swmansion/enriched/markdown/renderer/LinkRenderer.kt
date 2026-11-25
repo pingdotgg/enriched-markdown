@@ -2,7 +2,7 @@ package com.swmansion.enriched.markdown.renderer
 
 import android.text.SpannableStringBuilder
 import android.text.TextPaint
-import android.text.style.MetricAffectingSpan
+import android.text.style.CharacterStyle
 import android.text.style.ReplacementSpan
 import com.swmansion.enriched.markdown.parser.MarkdownASTNode
 import com.swmansion.enriched.markdown.spans.LinkFontSpan
@@ -90,9 +90,10 @@ class LinkRenderer(
 
   /**
    * Where the icon span that starts at [start] ends: the first point the line may break, so the
-   * icon stays with its first word. A line can break on either side of a replacement span, so covering less would let that
-   * word split after its first letter. Stops where the run's font changes, since a replacement is
-   * measured once per run, and after [MAX_ICON_RUN] characters, so a long unbroken token still wraps.
+   * icon stays with its first word. A line can break on either side of a replacement span, so
+   * covering less would let that word split after its first letter. Stops where any text style
+   * changes, since a replacement is measured once per run and drawn with one paint, and after
+   * [MAX_ICON_RUN] characters, so a long unbroken token still wraps.
    */
   private fun iconRunEnd(
     builder: SpannableStringBuilder,
@@ -105,7 +106,7 @@ class LinkRenderer(
     val lines = BreakIterator.getLineInstance().apply { setText(text) }
     var wordEnd = lines.following(0).takeIf { it != BreakIterator.DONE } ?: text.length
     while (wordEnd > firstCharacter && text[wordEnd - 1].isWhitespace()) wordEnd--
-    val limit = min(builder.nextSpanTransition(start, end, MetricAffectingSpan::class.java) - start, MAX_ICON_RUN)
+    val limit = min(builder.nextSpanTransition(start, end, CharacterStyle::class.java) - start, MAX_ICON_RUN)
     var runEnd = min(wordEnd, limit)
     if (runEnd > firstCharacter && !characters.isBoundary(runEnd)) runEnd = characters.preceding(runEnd)
     return start + max(firstCharacter, runEnd)
