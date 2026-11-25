@@ -47,15 +47,7 @@ class LinkSpan(
     super.updateDrawState(textPaint)
 
     val variant = styleCache.resolvedVariantForUrl(url)
-
-    val fontFamily = variant?.fontFamily?.takeIf { it.isNotEmpty() } ?: styleCache.linkFontFamily
-    if (fontFamily.isNotEmpty()) {
-      textPaint.textSize = blockStyle.fontSize
-      textPaint.applyBlockStyleFont(blockStyle.copy(fontFamily = fontFamily), context)
-    } else if (!keepsCodeFont) {
-      textPaint.textSize = blockStyle.fontSize
-      textPaint.applyBlockStyleFont(blockStyle, context)
-    }
+    applyLinkFont(textPaint)
 
     textPaint.color = variant?.color ?: styleCache.linkColor
     textPaint.isUnderlineText = variant?.underline ?: styleCache.linkUnderline
@@ -63,6 +55,19 @@ class LinkSpan(
     val backgroundColor = variant?.backgroundColor ?: styleCache.linkBackgroundColor
     if (Color.alpha(backgroundColor) > 0) {
       textPaint.bgColor = backgroundColor
+    }
+  }
+
+  /** The font this link draws with, which [updateDrawState] applies after every metric-affecting span. */
+  fun applyLinkFont(textPaint: TextPaint) {
+    val variant = styleCache.resolvedVariantForUrl(url)
+    val fontFamily = variant?.fontFamily?.takeIf { it.isNotEmpty() } ?: styleCache.linkFontFamily
+    if (fontFamily.isNotEmpty()) {
+      textPaint.textSize = blockStyle.fontSize
+      textPaint.applyBlockStyleFont(blockStyle.copy(fontFamily = fontFamily), context)
+    } else if (!keepsCodeFont) {
+      textPaint.textSize = blockStyle.fontSize
+      textPaint.applyBlockStyleFont(blockStyle, context)
     }
   }
 }
