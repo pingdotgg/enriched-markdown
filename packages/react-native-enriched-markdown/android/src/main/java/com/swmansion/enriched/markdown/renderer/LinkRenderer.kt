@@ -36,6 +36,7 @@ class LinkRenderer(
 
     factory.renderWithSpan(builder, { factory.renderChildren(node, builder, onLinkPress, onLinkLongPress) }) { start, end, blockStyle ->
       val variant = factory.styleCache.resolvedVariantForUrl(url)
+      val inlineIcon = variant?.inlineIcon?.takeIf { builder.getSpans(start, end, ReplacementSpan::class.java).isEmpty() }
       val linkSpan =
         LinkSpan(
           url,
@@ -46,6 +47,7 @@ class LinkRenderer(
           factory.context,
           recognizedLink = recognizedLink,
           keepsCodeFont = recognizedLink && node.children.any { it.type == MarkdownASTNode.NodeType.Code },
+          appliesFont = inlineIcon == null,
         )
       if (variant?.pill != null && canPresentAsPill(builder, factory, start, end)) {
         val fontFamily = variant.fontFamily.ifEmpty { factory.styleCache.linkFontFamily }.ifEmpty { blockStyle.fontFamily }
@@ -65,27 +67,25 @@ class LinkRenderer(
         // need to come after the block spans, and a late insertion makes the builder re-sort.
         builder.setSpan(pill, start, end, SPAN_FLAGS_EXCLUSIVE_EXCLUSIVE)
         factory.runAfterRender { text -> pill.resolveLeadingMargin(text, text.getSpanStart(pill), text.getSpanEnd(pill)) }
-      } else if (variant?.inlineIcon != null && builder.getSpans(start, end, ReplacementSpan::class.java).isEmpty()) {
-        // Added after the children's spans, so the link font wins when measuring as it does when drawing.
+      } else if (inlineIcon != null) {
+        // The link font is applied while measuring, not only while drawing, so the text wraps where it
+        // is drawn. Set after the children's spans: their fonts lose to the link's, an enclosing
+        // bold or italic set later still applies.
         builder.setSpan(LinkFontSpan(linkSpan), start, end, SPAN_FLAGS_EXCLUSIVE_EXCLUSIVE)
-        // A replacement span is neutral in bidi layout, so one over a right-to-left word could move
-        // that word to the wrong end of its run. Those links keep their text and go without the icon.
-        if (!startsRightToLeft(builder, start, end)) {
-          builder.setSpan(
-            LinkIconSpan(variant.inlineIcon, linkSpan, blockStyle.fontSize, factory.context, config.style.imageRequestHeaders),
-            start,
-            iconRunEnd(builder, start, end),
-            SPAN_FLAGS_EXCLUSIVE_EXCLUSIVE,
-          )
-        }
+        val icon = LinkIconSpan(inlineIcon, linkSpan, blockStyle.fontSize, factory.context, config.style.imageRequestHeaders)
+        builder.setSpan(icon, start, iconRunEnd(builder, start, end), SPAN_FLAGS_EXCLUSIVE_EXCLUSIVE)
+        // Bidi layout treats a replacement span as neutral, so in a paragraph with right-to-left
+        // text the covered word could move, or set the paragraph's direction. There the link keeps
+        // its text without the icon. Checked once the whole paragraph is rendered.
+        factory.runAfterRender { if (paragraphHasRightToLeft(builder, builder.getSpanStart(icon))) builder.removeSpan(icon) }
       }
       builder.setSpan(linkSpan, start, end, SPAN_FLAGS_EXCLUSIVE_EXCLUSIVE)
     }
   }
 
   /**
-   * Where the icon span ends: the first point the line may break, so the icon stays with its first
-   * word. A line can break on either side of a replacement span, so covering less would let that
+   * Where the icon span ends: the first point after the first visible character where the line may
+   * break, so the icon stays with its first word. A line can break on either side of a replacement span, so covering less would let that
    * word split after its first letter. Stops where the run's font changes, since a replacement is
    * measured once per run, and after [MAX_ICON_RUN] characters, so a long unbroken token still wraps.
    */
@@ -95,10 +95,11 @@ class LinkRenderer(
     end: Int,
   ): Int {
     val text = builder.subSequence(start, end).toString()
+    val firstVisible = text.indexOfFirst { !it.isWhitespace() }.coerceAtLeast(0)
     val characters = BreakIterator.getCharacterInstance().apply { setText(text) }
-    val firstCharacter = characters.following(0).takeIf { it != BreakIterator.DONE } ?: text.length
+    val firstCharacter = characters.following(firstVisible).takeIf { it != BreakIterator.DONE } ?: text.length
     val lines = BreakIterator.getLineInstance().apply { setText(text) }
-    var wordEnd = lines.following(0).takeIf { it != BreakIterator.DONE } ?: text.length
+    var wordEnd = lines.following(firstVisible).takeIf { it != BreakIterator.DONE } ?: text.length
     while (wordEnd > firstCharacter && text[wordEnd - 1].isWhitespace()) wordEnd--
     val limit = min(builder.nextSpanTransition(start, end, MetricAffectingSpan::class.java) - start, MAX_ICON_RUN)
     var runEnd = min(wordEnd, limit)
@@ -106,16 +107,16 @@ class LinkRenderer(
     return start + max(firstCharacter, runEnd)
   }
 
-  private fun startsRightToLeft(
-    builder: CharSequence,
-    start: Int,
-    end: Int,
+  private fun paragraphHasRightToLeft(
+    text: CharSequence,
+    position: Int,
   ): Boolean {
-    var index = start
-    while (index < end) {
-      val codePoint = Character.codePointAt(builder, index)
+    if (position < 0) return false
+    var index = position
+    while (index > 0 && text[index - 1] != '\n') index--
+    while (index < text.length && text[index] != '\n') {
+      val codePoint = Character.codePointAt(text, index)
       when (Character.getDirectionality(codePoint)) {
-        Character.DIRECTIONALITY_LEFT_TO_RIGHT -> return false
         Character.DIRECTIONALITY_RIGHT_TO_LEFT, Character.DIRECTIONALITY_RIGHT_TO_LEFT_ARABIC -> return true
       }
       index += Character.charCount(codePoint)

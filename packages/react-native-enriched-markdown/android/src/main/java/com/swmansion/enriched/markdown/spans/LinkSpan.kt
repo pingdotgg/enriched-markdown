@@ -20,6 +20,8 @@ class LinkSpan(
   val recognizedLink: Boolean = false,
   // A recognized code span keeps its code font unless a link or variant font is set.
   private val keepsCodeFont: Boolean = false,
+  // False when a [LinkFontSpan] applies the font, while measuring as well as drawing.
+  private val appliesFont: Boolean = true,
 ) : ClickableSpan() {
   @Volatile
   private var longPressTriggered = false
@@ -47,7 +49,7 @@ class LinkSpan(
     super.updateDrawState(textPaint)
 
     val variant = styleCache.resolvedVariantForUrl(url)
-    applyLinkFont(textPaint)
+    if (appliesFont) applyLinkFont(textPaint)
 
     textPaint.color = variant?.color ?: styleCache.linkColor
     textPaint.isUnderlineText = variant?.underline ?: styleCache.linkUnderline
@@ -58,7 +60,7 @@ class LinkSpan(
     }
   }
 
-  /** The font this link draws with, which [updateDrawState] applies after every metric-affecting span. */
+  /** The font this link draws with. */
   fun applyLinkFont(textPaint: TextPaint) {
     val variant = styleCache.resolvedVariantForUrl(url)
     val fontFamily = variant?.fontFamily?.takeIf { it.isNotEmpty() } ?: styleCache.linkFontFamily
