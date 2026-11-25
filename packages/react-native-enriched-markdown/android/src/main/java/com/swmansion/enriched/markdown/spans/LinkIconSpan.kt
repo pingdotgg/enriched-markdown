@@ -9,6 +9,7 @@ import android.os.Looper
 import android.text.Spannable
 import android.text.Spanned
 import android.text.TextPaint
+import android.text.style.CharacterStyle
 import android.text.style.MetricAffectingSpan
 import android.text.style.ReplacementSpan
 import android.view.View
@@ -70,11 +71,24 @@ class LinkIconSpan(
   private val slotWidth: Float
     get() = if (reservesIconSlot) fontSize * ICON_SLOT_RATIO else 0f
 
-  // A replacement span's paint has the metric-affecting spans applied but not the link's own
-  // style, so the covered character takes it here, as the rest of the link text does.
-  private fun TextPaint.applyLinkStyle(source: Paint): TextPaint {
+  // A replacement span's paint gets the metric-affecting spans but none of the draw-only ones
+  // (the link's color, a strikethrough), so the covered word applies those at its start itself.
+  private fun TextPaint.applyCharacterStyles(
+    source: Paint,
+    text: CharSequence,
+    start: Int,
+  ): TextPaint {
     set(source)
-    link.updateDrawState(this)
+    val spanned = text as? Spanned
+    if (spanned == null) {
+      link.updateDrawState(this)
+    } else {
+      for (span in spanned.getSpans(start, start + 1, CharacterStyle::class.java)) {
+        // The spoiler hides text through the paint; draw fades the whole span instead.
+        if (span is MetricAffectingSpan || span is SpoilerSpan) continue
+        if (spanned.getSpanStart(span) <= start) span.updateDrawState(this)
+      }
+    }
     bgColor = 0
     return this
   }
@@ -86,8 +100,9 @@ class LinkIconSpan(
     end: Int,
     fm: Paint.FontMetricsInt?,
   ): Int {
-    // Measurement can run off the main thread, so it keeps its own paint.
-    val labelPaint = TextPaint().applyLinkStyle(paint)
+    // Measurement can run off the main thread, so it keeps its own paint. The metric-affecting
+    // spans, the link font among them, are already applied to [paint].
+    val labelPaint = TextPaint().apply { set(paint) }
     fm?.let {
       val metrics = labelPaint.fontMetricsInt
       it.ascent = min(it.ascent, metrics.ascent)
@@ -112,25 +127,20 @@ class LinkIconSpan(
     // A spoiler conceals text through the paint, which a replacement span's paint never gets.
     val visibility = (text as? Spanned)?.spoilerTextAlpha(start, end) ?: 1f
     if (visibility <= 0f) return
-    val labelPaint = drawPaint.applyLinkStyle(paint)
+    val labelPaint = drawPaint.applyCharacterStyles(paint, text, start)
     if (visibility < 1f) labelPaint.alpha = (labelPaint.alpha * visibility).roundToInt()
     val metrics = drawMetrics.also { labelPaint.getFontMetrics(it) }
-    val rightToLeft = Character.getDirectionality(Character.codePointAt(text, start)).isRightToLeft()
-    val labelWidth = labelPaint.measureText(text, start, end)
     val slot = slotWidth
-    val labelX = if (rightToLeft) x else x + slot
     icon?.takeIf { slot > 0f }?.let {
-      // The gap faces the label, which is on the icon's left in right-to-left text.
-      val slotX = if (rightToLeft) x + labelWidth + slot - fontSize else x
       val iconTop = y + (metrics.ascent + metrics.descent - fontSize) / 2
       val scale = fontSize / max(it.width, it.height)
-      rect.set(slotX, iconTop, slotX + it.width * scale, iconTop + it.height * scale)
+      rect.set(x, iconTop, x + it.width * scale, iconTop + it.height * scale)
       rect.offset((fontSize - rect.width()) / 2, (fontSize - rect.height()) / 2)
       iconPaint.colorFilter = style.iconTint
       iconPaint.alpha = (255 * visibility).roundToInt()
       canvas.drawBitmap(it, null, rect, iconPaint)
     }
-    canvas.drawText(text, start, end, labelX, y.toFloat(), labelPaint)
+    canvas.drawText(text, start, end, x + slot, y.toFloat(), labelPaint)
   }
 
   /** Lets an icon that arrives after layout redraw [view], and a failed one reflow it. */
@@ -194,9 +204,6 @@ class LinkIconSpan(
     private val drawPaint = TextPaint()
     private val drawMetrics = Paint.FontMetrics()
     private val rect = RectF()
-
-    private fun Byte.isRightToLeft() =
-      this == Character.DIRECTIONALITY_RIGHT_TO_LEFT || this == Character.DIRECTIONALITY_RIGHT_TO_LEFT_ARABIC
 
     fun registerView(
       text: CharSequence?,

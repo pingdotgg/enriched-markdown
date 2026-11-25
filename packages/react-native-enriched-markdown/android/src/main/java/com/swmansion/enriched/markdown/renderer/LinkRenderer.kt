@@ -13,6 +13,7 @@ import com.swmansion.enriched.markdown.spans.SpoilerSpan
 import com.swmansion.enriched.markdown.utils.text.extensions.applyBlockStyleFont
 import com.swmansion.enriched.markdown.utils.text.span.SPAN_FLAGS_EXCLUSIVE_EXCLUSIVE
 import java.text.BreakIterator
+import kotlin.math.max
 import kotlin.math.min
 
 private const val MAX_ICON_RUN = 24
@@ -67,38 +68,59 @@ class LinkRenderer(
       } else if (variant?.inlineIcon != null && builder.getSpans(start, end, ReplacementSpan::class.java).isEmpty()) {
         // Added after the children's spans, so the link font wins when measuring as it does when drawing.
         builder.setSpan(LinkFontSpan(linkSpan), start, end, SPAN_FLAGS_EXCLUSIVE_EXCLUSIVE)
-        builder.setSpan(
-          LinkIconSpan(variant.inlineIcon, linkSpan, blockStyle.fontSize, factory.context, config.style.imageRequestHeaders),
-          start,
-          iconRunEnd(builder, start, end),
-          SPAN_FLAGS_EXCLUSIVE_EXCLUSIVE,
-        )
+        // A replacement span is neutral in bidi layout, so one over a right-to-left word could move
+        // that word to the wrong end of its run. Those links keep their text and go without the icon.
+        if (!startsRightToLeft(builder, start, end)) {
+          builder.setSpan(
+            LinkIconSpan(variant.inlineIcon, linkSpan, blockStyle.fontSize, factory.context, config.style.imageRequestHeaders),
+            start,
+            iconRunEnd(builder, start, end),
+            SPAN_FLAGS_EXCLUSIVE_EXCLUSIVE,
+          )
+        }
       }
       builder.setSpan(linkSpan, start, end, SPAN_FLAGS_EXCLUSIVE_EXCLUSIVE)
     }
   }
 
   /**
-   * The end of the first word, which the icon span covers. A line can break on either side of
-   * a replacement span, so covering less would let the icon's word split after its first letter.
-   * Stops where the run's font changes, since a replacement is measured once per run, and after
-   * [MAX_ICON_RUN] characters, so a long unbroken token still wraps.
+   * Where the icon span ends: the first point the line may break, so the icon stays with its first
+   * word. A line can break on either side of a replacement span, so covering less would let that
+   * word split after its first letter. Stops where the run's font changes, since a replacement is
+   * measured once per run, and after [MAX_ICON_RUN] characters, so a long unbroken token still wraps.
    */
   private fun iconRunEnd(
     builder: SpannableStringBuilder,
     start: Int,
     end: Int,
   ): Int {
-    val limit = min(builder.nextSpanTransition(start, end, MetricAffectingSpan::class.java), start + MAX_ICON_RUN)
-    val iterator = BreakIterator.getCharacterInstance()
-    iterator.setText(builder.subSequence(start, end).toString())
-    var runEnd = start + iterator.following(0).let { if (it == BreakIterator.DONE) end - start else it }
-    while (runEnd < limit && !Character.isWhitespace(builder[runEnd])) {
-      val next = iterator.following(runEnd - start)
-      if (next == BreakIterator.DONE || start + next > limit) break
-      runEnd = start + next
+    val text = builder.subSequence(start, end).toString()
+    val characters = BreakIterator.getCharacterInstance().apply { setText(text) }
+    val firstCharacter = characters.following(0).takeIf { it != BreakIterator.DONE } ?: text.length
+    val lines = BreakIterator.getLineInstance().apply { setText(text) }
+    var wordEnd = lines.following(0).takeIf { it != BreakIterator.DONE } ?: text.length
+    while (wordEnd > firstCharacter && text[wordEnd - 1].isWhitespace()) wordEnd--
+    val limit = min(builder.nextSpanTransition(start, end, MetricAffectingSpan::class.java) - start, MAX_ICON_RUN)
+    var runEnd = min(wordEnd, limit)
+    if (runEnd > firstCharacter && !characters.isBoundary(runEnd)) runEnd = characters.preceding(runEnd)
+    return start + max(firstCharacter, runEnd)
+  }
+
+  private fun startsRightToLeft(
+    builder: CharSequence,
+    start: Int,
+    end: Int,
+  ): Boolean {
+    var index = start
+    while (index < end) {
+      val codePoint = Character.codePointAt(builder, index)
+      when (Character.getDirectionality(codePoint)) {
+        Character.DIRECTIONALITY_LEFT_TO_RIGHT -> return false
+        Character.DIRECTIONALITY_RIGHT_TO_LEFT, Character.DIRECTIONALITY_RIGHT_TO_LEFT_ARABIC -> return true
+      }
+      index += Character.charCount(codePoint)
     }
-    return runEnd
+    return false
   }
 
   /**
