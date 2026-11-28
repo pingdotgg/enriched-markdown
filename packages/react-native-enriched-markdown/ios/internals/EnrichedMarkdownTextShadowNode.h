@@ -32,6 +32,10 @@ public:
     return traits;
   }
 
+protected:
+  bool shouldNewRevisionDirtyMeasurement(const ShadowNode &sourceShadowNode,
+                                         const ShadowNodeFragment &fragment) const override;
+
 private:
   int localHeightRecalculationCounter_{0};
   mutable ENRMPreviousMeasurement<EnrichedMarkdownTextProps> previousMeasurement_;

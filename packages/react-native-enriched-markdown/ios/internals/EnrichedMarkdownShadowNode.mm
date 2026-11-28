@@ -332,6 +332,13 @@ CGSize EnrichedMarkdownShadowNode::measureWithSlots(const std::vector<SlotChild>
   return size;
 }
 
+// As EnrichedMarkdownTextShadowNode: only new props, the height counter or new slot children measure again.
+bool EnrichedMarkdownShadowNode::shouldNewRevisionDirtyMeasurement(const ShadowNode & /*sourceShadowNode*/,
+                                                                   const ShadowNodeFragment &fragment) const
+{
+  return fragment.props != nullptr;
+}
+
 Size EnrichedMarkdownShadowNode::measureContent(const LayoutContext &layoutContext,
                                                 const LayoutConstraints &layoutConstraints) const
 {

@@ -37,6 +37,10 @@ public:
     return traits;
   }
 
+protected:
+  bool shouldNewRevisionDirtyMeasurement(const ShadowNode &sourceShadowNode,
+                                         const ShadowNodeFragment &fragment) const override;
+
 private:
   struct SlotChild {
     std::string id;

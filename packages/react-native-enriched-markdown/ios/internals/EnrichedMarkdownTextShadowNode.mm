@@ -36,6 +36,16 @@ void EnrichedMarkdownTextShadowNode::dirtyLayoutIfNeeded()
   }
 }
 
+// React Native dirties a measurable node's every clone. A parent's layout re-clones its children without
+// new props (React Native's adoptYogaChild), and dirtying those clones re-measured every mounted text on
+// each commit: one view's state update measured all its siblings again. New props dirty the measurement;
+// the view asks for a re-measure through the height counter (dirtyLayoutIfNeeded).
+bool EnrichedMarkdownTextShadowNode::shouldNewRevisionDirtyMeasurement(const ShadowNode & /*sourceShadowNode*/,
+                                                                       const ShadowNodeFragment &fragment) const
+{
+  return fragment.props != nullptr;
+}
+
 Size EnrichedMarkdownTextShadowNode::measureContent(const LayoutContext &layoutContext,
                                                     const LayoutConstraints &layoutConstraints) const
 {
